@@ -51,7 +51,11 @@ def _build_extraction_prompt(resume_md: str, target_role: str, jd_md: str = None
     1. Level 1 Features: Calculate years of experience precisely, count projects, internships, etc. Length is rough word count.
     2. Level 2 Features: Extract array of technical skills/tools explicitly mentioned.
     3. Level 3 Features: If JD exists, output a dictionary mapping specific JD requirements to 1 (found) or 0 (missing). If no JD, return empty dict.
-    4. Scores (0-100): Be strictly analytical.
+    4. Scores (0-100): 
+       - ATS Score: Evaluate based ONLY on resume quality, structure, grammar, and parsability. (If the resume is well-written, ATS should be high regardless of role match).
+       - Skill, Project, Portfolio Scores: Evaluate based heavily on how well they MATCH the Target Role ({target_role}) or JD.
+       - Employability & Interview Scores: Represent OVERALL alignment. Balance resume quality with the target role fit. If the candidate's background is irrelevant to the target role, penalize these to reflect the poor fit.
+       - Role Fit Score: Strictly how well the candidate matches the target role/JD.
     5. Shortlist Probability: Based ONLY on JD and resume alignment. Return a percentage (e.g., "75%") or "No Info" if no JD.
     6. Dissect degree and branch. Interested Field is {target_role}. Potential field is top 1 alternative.
     7. Date Analysis: If a job posting date is available in the JD context, calculate the difference between the posting date and the Current Date. Store an explicit sentence like 'The job was posted X months ago, which might reduce the response rate.' inside 'jd_date_analysis'. If no date or JD, return null.
