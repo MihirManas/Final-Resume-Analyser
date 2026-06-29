@@ -13,7 +13,7 @@ export default function RootLayout({ children }) {
       <head>
         <meta name="theme-color" content="#000000" />
       </head>
-      <body suppressHydrationWarning className="bg-black text-white antialiased min-h-screen flex flex-col">
+      <body suppressHydrationWarning className="bg-[#020408] text-white antialiased min-h-screen flex flex-col">
         <AntiInspect />
         <Header />
         <main className="flex-1">
