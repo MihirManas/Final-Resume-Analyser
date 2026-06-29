@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef } from 'react';
-import { useGLTF, Environment, ContactShadows, Html, PerspectiveCamera } from '@react-three/drei';
+import { useGLTF, Environment, ContactShadows, Html, PerspectiveCamera, Center } from '@react-three/drei';
 import gsap from 'gsap/dist/gsap';
 import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -17,7 +17,6 @@ export default function Scene() {
   useGSAP(() => {
     gsap.registerPlugin(ScrollTrigger);
     
-    // Ensure the scroll container exists
     const trigger = document.getElementById("scroll-container");
     if (!trigger) return;
 
@@ -30,21 +29,21 @@ export default function Scene() {
       }
     });
 
-    // 1. Initial State (Resume floating)
-    tl.to(paperRef.current.rotation, { x: Math.PI / 8, y: -Math.PI / 4, z: 0.1, duration: 1 }, 0);
-    tl.to(cameraRef.current.position, { z: 6, x: 2, y: 1, duration: 1 }, 0);
+    // 1. Initial State
+    tl.to(paperRef.current.rotation, { x: 0, y: -Math.PI / 4, z: 0.1, duration: 1 }, 0);
+    tl.to(cameraRef.current.position, { z: 6, x: 2, y: 0, duration: 1 }, 0);
 
     // 2. Burning / Inspecting (Camera moves closer)
-    tl.to(paperRef.current.position, { z: 1, duration: 1 }, 1);
+    tl.to(paperRef.current.position, { z: 2, duration: 1 }, 1);
     tl.to(paperRef.current.rotation, { x: 0, y: Math.PI, z: 0, duration: 1 }, 1);
 
     // 3. Hands come up
     tl.to(handRef.current.position, { y: -2, z: 1, duration: 1 }, 2);
     tl.to(handRef.current.rotation, { x: 0, y: Math.PI / 2, z: 0, duration: 1 }, 2);
 
-    // 4. Hand pushes paper away / gives new paper
-    tl.to(paperRef.current.position, { y: 2, duration: 1 }, 3);
-    tl.to(handRef.current.position, { y: -5, duration: 1 }, 3.5);
+    // 4. Hand pushes paper away
+    tl.to(paperRef.current.position, { y: 4, duration: 1 }, 3);
+    tl.to(handRef.current.position, { y: -6, duration: 1 }, 3.5);
 
   }, { scope: containerRef });
 
@@ -52,43 +51,48 @@ export default function Scene() {
     <group ref={containerRef}>
       <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 0, 8]} fov={45} />
       
-      <ambientLight intensity={0.5} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
+      <ambientLight intensity={1} />
+      <spotLight position={[10, 10, 10]} angle={0.5} penumbra={1} intensity={2} castShadow />
       <Environment preset="city" />
 
-      {/* Wrapping the GLTF in a group makes it safe to attach refs and React children */}
-      <group 
-        ref={paperRef}
-        position={[2, 0, 0]} 
-        scale={0.5}
-        rotation={[0, -Math.PI / 6, 0]}
-      >
-        <primitive object={paper.scene} />
+      {/* PAPER GROUP */}
+      <group ref={paperRef} position={[2, 0, 0]}>
         
-        {/* HTML UI overlaid exactly on the paper model */}
-        <Html transform position={[0, 0, 0.1]} distanceFactor={2}>
-          <div className="w-[300px] h-[400px] bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-4 text-white flex flex-col pointer-events-none">
-             <h3 className="text-xl font-bold mb-4 text-[#009DFF]">Resume Analysis</h3>
-             <div className="w-full h-4 bg-gray-700 rounded mb-2"></div>
-             <div className="w-3/4 h-4 bg-gray-700 rounded mb-2"></div>
-             <div className="w-5/6 h-4 bg-gray-700 rounded mb-6"></div>
+        {/* Inner group corrects the model's raw scale and orientation */}
+        <group scale={15} rotation={[Math.PI / 2, 0, 0]}>
+          <Center>
+            <primitive object={paper.scene} />
+          </Center>
+        </group>
+        
+        {/* HTML UI overlaid - manually scaled down to fit the normalized paper */}
+        <Html transform position={[0, 0, 0.1]} scale={0.4}>
+          <div className="w-[300px] h-[400px] bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-6 text-white flex flex-col pointer-events-none shadow-[0_0_50px_rgba(0,157,255,0.2)]">
+             <h3 className="text-2xl font-black mb-6 text-[#009DFF] tracking-tight">Resume Analysis</h3>
+             <div className="w-full h-4 bg-gray-700 rounded mb-3"></div>
+             <div className="w-3/4 h-4 bg-gray-700 rounded mb-3"></div>
+             <div className="w-5/6 h-4 bg-gray-700 rounded mb-8"></div>
+             <div className="w-full h-12 bg-red-500/20 border border-red-500/50 rounded flex items-center justify-center font-bold text-red-500 mb-6">
+               REJECTED
+             </div>
              <div className="mt-auto flex justify-between">
-                <div className="w-12 h-4 bg-green-500/50 rounded"></div>
-                <div className="w-12 h-4 bg-blue-500/50 rounded"></div>
+                <div className="w-16 h-4 bg-green-500/50 rounded"></div>
+                <div className="w-16 h-4 bg-blue-500/50 rounded"></div>
              </div>
           </div>
         </Html>
       </group>
 
-      <group 
-        ref={handRef}
-        position={[2, -10, 0]} 
-        scale={2}
-      >
-        <primitive object={hand.scene} />
+      {/* HANDS GROUP */}
+      <group ref={handRef} position={[2, -10, 0]}>
+        <group scale={15}>
+          <Center>
+            <primitive object={hand.scene} />
+          </Center>
+        </group>
       </group>
 
-      <ContactShadows position={[0, -3, 0]} opacity={0.4} scale={20} blur={2} far={4.5} />
+      <ContactShadows position={[0, -4, 0]} opacity={0.6} scale={20} blur={2.5} far={5} />
     </group>
   );
 }
