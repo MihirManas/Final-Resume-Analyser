@@ -92,6 +92,3 @@ export default function Scene() {
     </group>
   );
 }
-
-useGLTF.preload('/3d/paper_-_3mb.glb');
-useGLTF.preload('/3d/hand_gesture_1.glb');

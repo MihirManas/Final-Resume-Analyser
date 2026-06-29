@@ -3,34 +3,42 @@ import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles, Code2, Zap } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
-import Lenis from "lenis";
-import Scene from "@/components/Scene";
+import dynamic from "next/dynamic";
+
+// Dynamically import Scene to completely disable Server-Side Rendering for WebGL
+const Scene = dynamic(() => import('@/components/Scene'), { 
+  ssr: false,
+});
 
 export default function LandingPage() {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    // Initialize Lenis for smooth scroll hijacking
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      direction: 'vertical',
-      gestureDirection: 'vertical',
-      smooth: true,
-      mouseMultiplier: 1,
-      smoothTouch: false,
-      touchMultiplier: 2,
-    });
+    let lenis;
+    const initLenis = async () => {
+      const LenisModule = (await import('lenis')).default;
+      lenis = new LenisModule({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        direction: 'vertical',
+        gestureDirection: 'vertical',
+        smooth: true,
+        mouseMultiplier: 1,
+        smoothTouch: false,
+        touchMultiplier: 2,
+      });
 
-    function raf(time) {
-      lenis.raf(time);
+      function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+      }
       requestAnimationFrame(raf);
-    }
+    };
 
-    requestAnimationFrame(raf);
+    initLenis();
 
     return () => {
-      lenis.destroy();
+      if (lenis) lenis.destroy();
     };
   }, []);
 
