@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Zap, Play } from "lucide-react";
 import { motion } from "framer-motion";
+import ProcessSection from "@/components/ProcessSection";
 
 export default function LandingPage() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -25,9 +26,9 @@ export default function LandingPage() {
         Background Image (frame_02) handled with Framer Motion 
         for precise sizing, subtle parallax blending, and masking.
       */}
-      <div className="absolute inset-0 z-0 flex justify-end pointer-events-none overflow-hidden">
+      <div className="absolute top-0 right-0 bottom-0 left-0 z-0 flex justify-end pointer-events-none overflow-hidden h-[100vh]">
         <motion.div 
-          className="relative w-[130%] md:w-[85%] lg:w-[65%] h-[120%] md:h-full -right-[15%] md:-right-[5%] lg:right-0 mt-20 lg:mt-0"
+          className="relative w-[130%] md:w-[85%] lg:w-[65%] h-full -right-[15%] md:-right-[5%] lg:right-0 mt-20 lg:mt-0"
           initial={{ opacity: 0, scale: 1.03 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.2, ease: "easeOut" }}
@@ -101,7 +102,7 @@ export default function LandingPage() {
 
         {/* Bottom Transition Element */}
         <motion.div 
-          className="w-full mt-auto pt-8 flex flex-col items-center justify-center relative z-10"
+          className="w-full pt-8 flex flex-col items-center justify-center relative z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.6 }}
@@ -115,6 +116,9 @@ export default function LandingPage() {
             <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent flex-1"></div>
           </div>
         </motion.div>
+
+        {/* Process Section */}
+        <ProcessSection />
 
       </main>
     </div>
