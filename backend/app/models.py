@@ -1,7 +1,37 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, JSON
+import secrets
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, JSON, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
+
+
+class APIClient(Base):
+    """Third-party startup accounts that consume the external API."""
+    __tablename__ = "api_clients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)  # e.g. "CourseWala"
+    api_key = Column(String, unique=True, index=True, default=lambda: f"jes_{secrets.token_hex(24)}")
+    google_sheet_url = Column(String, nullable=True)  # Link provided by the startup
+    monthly_limit = Column(Integer, default=1000)
+    current_usage = Column(Integer, default=0)
+    billing_cycle_start = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    analyses = relationship("ResumeAnalysis", back_populates="api_client")
+
+class APILead(Base):
+    """Lead capture for startups requesting API access."""
+    __tablename__ = "api_leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    email = Column(String)
+    phone = Column(String)
+    company = Column(String)
+    use_case = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):
     __tablename__ = "users"
@@ -26,7 +56,8 @@ class ResumeAnalysis(Base):
     __tablename__ = "resume_analyses"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    api_client_id = Column(Integer, ForeignKey("api_clients.id"), nullable=True)
     target_role = Column(String, index=True)
     resume_filename = Column(String)
     jd_filename = Column(String, nullable=True)
@@ -51,6 +82,7 @@ class ResumeAnalysis(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="analyses")
+    api_client = relationship("APIClient", back_populates="analyses")
     report = relationship("AnalysisReport", back_populates="analysis", uselist=False)
     evaluations = relationship("ModelEvaluation", back_populates="analysis")
 

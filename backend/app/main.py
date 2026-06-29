@@ -3,18 +3,24 @@ import json
 import logging
 import hashlib
 import asyncio
-from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks
+from datetime import datetime, timedelta
+from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.database import Base, engine, get_db
-from app.models import User, ResumeAnalysis, AnalysisReport, AnalysisCache, ModelEvaluation, JobPosting, JobMatch
-from app.schemas import AnalysisResponse, DashboardReport, FullGeminiResult, JobPostingCreate, JobPostingResponse, PersonalizedFeedResponse
+from app.models import User, ResumeAnalysis, AnalysisReport, AnalysisCache, ModelEvaluation, JobPosting, JobMatch, APIClient, APILead
+from app.schemas import (
+    AnalysisResponse, DashboardReport, FullGeminiResult, JobPostingCreate,
+    JobPostingResponse, PersonalizedFeedResponse,
+    ExternalAnalysisResponse, APIClientCreate, APIClientResponse, APIClientUsageResponse, APILeadCreate,
+)
 from app.services.document import extract_markdown_from_upload
 from app.services.gemini import analyze_resume, rewrite_resume_background, evaluate_job_match
 from app.services.groq_service import run_consensus_voting
 from app.services.sheets import upsert_candidate_info
+from app.services.third_party_sheets import push_candidate_to_sheet
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -402,6 +408,258 @@ async def get_personalized_feed(user_id: int, db: AsyncSession = Depends(get_db)
             
     return {"tier_90_plus": tier_90, "tier_80_plus": tier_80}
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXTERNAL API SYSTEM  (Third-party startup integration)
+# ─────────────────────────────────────────────────────────────────────────────
+
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "jes_admin_default_change_me")
+
+
+async def verify_api_key(
+    x_api_key: str = Header(..., alias="X-API-Key"),
+    db: AsyncSession = Depends(get_db),
+) -> APIClient:
+    """
+    FastAPI dependency that:
+      1. Validates the API key exists and is active.
+      2. Auto-resets the billing cycle if 30 days have passed.
+      3. Checks monthly quota.
+    Returns the APIClient ORM object on success.
+    """
+    stmt = select(APIClient).where(APIClient.api_key == x_api_key)
+    result = await db.execute(stmt)
+    client = result.scalars().first()
+
+    if not client or not client.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or inactive API key.",
+        )
+
+    # Auto-reset billing cycle every 30 days
+    if client.billing_cycle_start and (
+        datetime.utcnow() - client.billing_cycle_start > timedelta(days=30)
+    ):
+        client.current_usage = 0
+        client.billing_cycle_start = datetime.utcnow()
+        await db.commit()
+        await db.refresh(client)
+
+    # Quota check
+    if client.current_usage >= client.monthly_limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Monthly quota of {client.monthly_limit} resumes exceeded. "
+                   f"Resets on {(client.billing_cycle_start + timedelta(days=30)).strftime('%Y-%m-%d')}.",
+        )
+
+    return client
+
+
+@app.post("/api/v1/external/analyze", response_model=ExternalAnalysisResponse)
+async def external_analyze(
+    background_tasks: BackgroundTasks,
+    resume_file: UploadFile = File(...),
+    target_role: str = Form(...),
+    jd_text: str = Form(None),
+    client: APIClient = Depends(verify_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    External API endpoint for third-party startups.
+    - Accepts a resume + target role.
+    - Runs the full Gemini analysis pipeline.
+    - Saves ALL detailed data into OUR database (linked to the API client).
+    - Pushes basic candidate info to the STARTUP's Google Sheet.
+    - Returns ONLY basic candidate info to the startup (name, phone, email, college, branch).
+    """
+    try:
+        # 1. Extract resume text
+        resume_md = await extract_markdown_from_upload(resume_file)
+
+        jd_md = jd_text.strip() if jd_text and jd_text.strip() else None
+
+        # 2. Run full AI analysis (same pipeline as our internal endpoint)
+        gemini_result = await analyze_resume(resume_md, target_role, jd_md, None)
+
+        candidate = gemini_result.extraction.candidate_info
+
+        # 3. Save FULL analysis into OUR database (startup never sees this)
+        analysis = ResumeAnalysis(
+            api_client_id=client.id,
+            target_role=target_role,
+            resume_filename=resume_file.filename,
+            employability_score=gemini_result.extraction.employability_score,
+            ats_score=gemini_result.extraction.ats_score,
+            skill_score=gemini_result.extraction.skill_score,
+            project_score=gemini_result.extraction.project_score,
+            portfolio_score=gemini_result.extraction.portfolio_score,
+            interview_score=gemini_result.extraction.interview_score,
+            level_1_features=gemini_result.extraction.level_1_features.model_dump(),
+            level_2_features=gemini_result.extraction.level_2_features,
+            level_3_features=[f.model_dump() for f in gemini_result.extraction.level_3_features],
+            shortlist_probability=gemini_result.extraction.shortlist_probability,
+        )
+        db.add(analysis)
+
+        # 4. Increment usage counter
+        client.current_usage += 1
+        await db.commit()
+        await db.refresh(analysis)
+
+        # 5. Save detailed report (for our internal analytics)
+        report = AnalysisReport(
+            analysis_id=analysis.id,
+            strengths_json=gemini_result.feedback.strengths,
+            weaknesses_json=gemini_result.feedback.weaknesses,
+            missing_skills_json=gemini_result.feedback.missing_skills,
+            recommendations_json={
+                "skills": gemini_result.feedback.recommended_skills,
+                "projects": gemini_result.feedback.recommended_projects,
+                "certifications": gemini_result.feedback.recommended_certifications,
+                "career_suggestions": gemini_result.feedback.career_suggestions,
+                "top_rejection_reasons": gemini_result.feedback.top_rejection_reasons,
+            },
+            improvement_plan_json=gemini_result.feedback.improvement_plan,
+            alternative_roles_json=gemini_result.feedback.alternative_roles_suggested,
+            skill_guide_json=gemini_result.feedback.skill_acquisition_guide,
+            jd_comparison_json=[item.model_dump() for item in gemini_result.feedback.jd_resume_comparison],
+            raw_llm_response=gemini_result.model_dump_json(),
+        )
+        db.add(report)
+        await db.commit()
+
+        # 6. Push basic info to OUR Google Sheet (same as internal flow)
+        if candidate:
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(None, upsert_candidate_info, candidate)
+
+        # 7. Push basic info to the STARTUP's Google Sheet (background)
+        if client.google_sheet_url and candidate:
+            background_tasks.add_task(
+                push_candidate_to_sheet,
+                google_sheet_url=client.google_sheet_url,
+                name=candidate.name or "",
+                phone=candidate.phone_number or "",
+                email=candidate.email or "",
+                college=candidate.college_name or "",
+                branch=candidate.branch or "",
+                target_role=target_role,
+            )
+
+        # 8. Return ONLY the basic info to the startup
+        return ExternalAnalysisResponse(
+            name=candidate.name if candidate else None,
+            phone_number=candidate.phone_number if candidate else None,
+            email=candidate.email if candidate else None,
+            college_name=candidate.college_name if candidate else None,
+            branch=candidate.branch if candidate else None,
+            target_role=target_role,
+            message=f"Analysis completed. Usage: {client.current_usage}/{client.monthly_limit}",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"[External API] Analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN ENDPOINTS  (For you to manage API clients)
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def verify_admin(x_admin_secret: str = Header(..., alias="X-Admin-Secret")):
+    """Simple admin auth — protect client management endpoints."""
+    if x_admin_secret != ADMIN_SECRET:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid admin secret.")
+
+
+@app.post("/admin/api-clients", response_model=APIClientResponse, dependencies=[Depends(verify_admin)])
+async def create_api_client(payload: APIClientCreate, db: AsyncSession = Depends(get_db)):
+    """Register a new startup and generate their unique API key."""
+    client = APIClient(
+        name=payload.name,
+        google_sheet_url=payload.google_sheet_url,
+        monthly_limit=payload.monthly_limit,
+    )
+    db.add(client)
+    await db.commit()
+    await db.refresh(client)
+    logger.info(f"[Admin] Created API client '{client.name}' with key {client.api_key[:12]}...")
+    return client
+
+
+@app.get("/admin/api-clients", response_model=list[APIClientResponse], dependencies=[Depends(verify_admin)])
+async def list_api_clients(db: AsyncSession = Depends(get_db)):
+    """List all registered startups."""
+    result = await db.execute(select(APIClient).order_by(APIClient.created_at.desc()))
+    return result.scalars().all()
+
+
+@app.get("/admin/api-clients/{client_id}", response_model=APIClientResponse, dependencies=[Depends(verify_admin)])
+async def get_api_client(client_id: int, db: AsyncSession = Depends(get_db)):
+    """Get details for a specific API client."""
+    result = await db.execute(select(APIClient).where(APIClient.id == client_id))
+    client = result.scalars().first()
+    if not client:
+        raise HTTPException(status_code=404, detail="API client not found.")
+    return client
+
+
+@app.put("/admin/api-clients/{client_id}/sheet", dependencies=[Depends(verify_admin)])
+async def update_client_sheet(client_id: int, google_sheet_url: str = Form(...), db: AsyncSession = Depends(get_db)):
+    """Update the Google Sheet URL for a client."""
+    result = await db.execute(select(APIClient).where(APIClient.id == client_id))
+    client = result.scalars().first()
+    if not client:
+        raise HTTPException(status_code=404, detail="API client not found.")
+    client.google_sheet_url = google_sheet_url
+    await db.commit()
+    return {"message": f"Google Sheet URL updated for '{client.name}'."}
+
+
+@app.put("/admin/api-clients/{client_id}/deactivate", dependencies=[Depends(verify_admin)])
+async def deactivate_api_client(client_id: int, db: AsyncSession = Depends(get_db)):
+    """Deactivate a startup's API access."""
+    result = await db.execute(select(APIClient).where(APIClient.id == client_id))
+    client = result.scalars().first()
+    if not client:
+        raise HTTPException(status_code=404, detail="API client not found.")
+    client.is_active = False
+    await db.commit()
+    return {"message": f"API client '{client.name}' has been deactivated."}
+
+
+@app.get("/api/v1/external/usage", response_model=APIClientUsageResponse)
+async def check_usage(
+    client: APIClient = Depends(verify_api_key),
+):
+    """Startups can check their own quota usage with their API key."""
+    return APIClientUsageResponse(
+        name=client.name,
+        monthly_limit=client.monthly_limit,
+        current_usage=client.current_usage,
+        remaining=max(0, client.monthly_limit - client.current_usage),
+        billing_cycle_start=client.billing_cycle_start,
+    )
+
+@app.post("/api/leads")
+async def create_api_lead(payload: APILeadCreate, db: AsyncSession = Depends(get_db)):
+    """Capture lead information from startups requesting API access."""
+    lead = APILead(
+        name=payload.name,
+        email=payload.email,
+        phone=payload.phone,
+        company=payload.company,
+        use_case=payload.useCase,
+    )
+    db.add(lead)
+    await db.commit()
+    logger.info(f"[Lead Capture] New API request from {lead.name} at {lead.company}")
+    return {"message": "Lead captured successfully"}
 
 if __name__ == "__main__":
     import uvicorn

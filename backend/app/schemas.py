@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional, Any
+from datetime import datetime
 
 class AnalysisResponse(BaseModel):
     analysis_id: int
@@ -138,3 +139,46 @@ class JobMatchEvaluationOutput(BaseModel):
     missing_requirements: List[str]
 
 
+# ─── External API Schemas ─────────────────────────────────────────────────────
+
+class ExternalAnalysisResponse(BaseModel):
+    """The ONLY data returned to third-party startups."""
+    name: Optional[str] = None
+    phone_number: Optional[str] = None
+    email: Optional[str] = None
+    college_name: Optional[str] = None
+    branch: Optional[str] = None
+    target_role: str
+    message: str = "Analysis completed"
+
+class APIClientCreate(BaseModel):
+    """Admin request to register a new startup."""
+    name: str
+    google_sheet_url: Optional[str] = None
+    monthly_limit: int = 1000
+
+class APILeadCreate(BaseModel):
+    name: str
+    email: str
+    phone: str
+    company: str
+    useCase: Optional[str] = None
+
+class APIClientResponse(BaseModel):
+    """Returned after creating a new API client."""
+    id: int
+    name: str
+    api_key: str
+    google_sheet_url: Optional[str] = None
+    monthly_limit: int
+    current_usage: int
+    is_active: bool
+    created_at: Any
+
+class APIClientUsageResponse(BaseModel):
+    """Quick usage check for a startup."""
+    name: str
+    monthly_limit: int
+    current_usage: int
+    remaining: int
+    billing_cycle_start: Any
