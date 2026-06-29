@@ -1,0 +1,6 @@
+node_modules/
+.next/
+backend/.env
+.env
+.env.local
+.DS_Store
