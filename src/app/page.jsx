@@ -3,17 +3,19 @@ import React from "react";
 import Link from "next/link";
 import { Sparkles, Zap, Play } from "lucide-react";
 import HeroAnimation from "@/components/HeroAnimation";
+import ProcessSection from "@/components/ProcessSection";
 
 export default function LandingPage() {
   return (
-    <div className="bg-[#050508] text-white min-h-screen relative overflow-hidden flex flex-col pt-24">
+    <div className="bg-[#050508] text-white min-h-screen relative overflow-hidden flex flex-col pt-24 pb-12">
       {/* Background Glows */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#40b8ff]/10 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-[#8c52ff]/10 blur-[120px] rounded-full pointer-events-none"></div>
       
-      <main className="flex-1 flex flex-col justify-center max-w-[1400px] mx-auto px-6 w-full relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          
+      <main className="flex-1 flex flex-col w-full relative z-10">
+        
+        {/* Hero Section */}
+        <div className="max-w-[1400px] mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-160px)]">
           {/* Left Column: Content */}
           <div className="max-w-xl">
             {/* Badge */}
@@ -61,22 +63,24 @@ export default function LandingPage() {
           <div className="w-full h-full min-h-[400px] lg:min-h-[600px] relative">
             <HeroAnimation />
           </div>
-          
         </div>
-      </main>
 
-      {/* Bottom Element */}
-      <div className="w-full pb-8 pt-12 flex flex-col items-center justify-center relative z-10 mt-auto">
-        <div className="flex items-center justify-center w-full max-w-4xl opacity-70">
-          <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent flex-1"></div>
-          <div className="px-6 flex items-center gap-2">
-            <span className="text-xl font-bold tracking-wide">See the Magic Happen</span>
-            <Sparkles className="w-5 h-5 text-[#40b8ff]" />
+        {/* Transition Element */}
+        <div className="w-full py-12 flex flex-col items-center justify-center relative z-10">
+          <div className="flex items-center justify-center w-full max-w-[1400px] opacity-70">
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent flex-1"></div>
+            <div className="px-6 flex items-center gap-2">
+              <span className="text-xl font-bold tracking-wide">See the Magic Happen</span>
+              <Sparkles className="w-5 h-5 text-[#40b8ff]" />
+            </div>
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent flex-1"></div>
           </div>
-          <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent flex-1"></div>
         </div>
-      </div>
-      
+
+        {/* Cards & Features Section */}
+        <ProcessSection />
+
+      </main>
     </div>
   );
 }
