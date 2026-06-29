@@ -1,70 +1,71 @@
 "use client";
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useGLTF, Environment, ContactShadows, Html, PerspectiveCamera } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
 
 export default function Scene() {
   const paper = useGLTF('/3d/paper_-_3mb.glb');
   const hand = useGLTF('/3d/hand_gesture_1.glb');
   
-  const sceneRef = useRef();
+  const containerRef = useRef();
   const paperRef = useRef();
   const handRef = useRef();
   const cameraRef = useRef();
-  const htmlRef = useRef();
 
-  useEffect(() => {
+  useGSAP(() => {
     gsap.registerPlugin(ScrollTrigger);
-    let ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: "#scroll-container",
-          start: "top top",
-          end: "bottom bottom",
-          scrub: 1, // Smooth scrubbing
-        }
-      });
+    
+    // Ensure the scroll container exists
+    const trigger = document.getElementById("scroll-container");
+    if (!trigger) return;
 
-      // 1. Initial State (Resume floating)
-      tl.to(paperRef.current.rotation, { x: Math.PI / 8, y: -Math.PI / 4, z: 0.1, duration: 1 }, 0);
-      tl.to(cameraRef.current.position, { z: 6, x: 2, y: 1, duration: 1 }, 0);
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: trigger,
+        start: "top top",
+        end: "bottom bottom",
+        scrub: 1,
+      }
+    });
 
-      // 2. Burning / Inspecting (Camera moves closer)
-      tl.to(paperRef.current.position, { z: 1, duration: 1 }, 1);
-      tl.to(paperRef.current.rotation, { x: 0, y: Math.PI, z: 0, duration: 1 }, 1); // Flip it around
+    // 1. Initial State (Resume floating)
+    tl.to(paperRef.current.rotation, { x: Math.PI / 8, y: -Math.PI / 4, z: 0.1, duration: 1 }, 0);
+    tl.to(cameraRef.current.position, { z: 6, x: 2, y: 1, duration: 1 }, 0);
 
-      // 3. Hands come up
-      tl.to(handRef.current.position, { y: -2, z: 1, duration: 1 }, 2);
-      tl.to(handRef.current.rotation, { x: 0, y: Math.PI / 2, z: 0, duration: 1 }, 2);
+    // 2. Burning / Inspecting (Camera moves closer)
+    tl.to(paperRef.current.position, { z: 1, duration: 1 }, 1);
+    tl.to(paperRef.current.rotation, { x: 0, y: Math.PI, z: 0, duration: 1 }, 1);
 
-      // 4. Hand pushes paper away / gives new paper
-      tl.to(paperRef.current.position, { y: 2, duration: 1 }, 3);
-      tl.to(handRef.current.position, { y: -5, duration: 1 }, 3.5);
+    // 3. Hands come up
+    tl.to(handRef.current.position, { y: -2, z: 1, duration: 1 }, 2);
+    tl.to(handRef.current.rotation, { x: 0, y: Math.PI / 2, z: 0, duration: 1 }, 2);
 
-    }, sceneRef);
+    // 4. Hand pushes paper away / gives new paper
+    tl.to(paperRef.current.position, { y: 2, duration: 1 }, 3);
+    tl.to(handRef.current.position, { y: -5, duration: 1 }, 3.5);
 
-    return () => ctx.revert();
-  }, []);
+  }, { scope: containerRef });
 
   return (
-    <group ref={sceneRef}>
+    <group ref={containerRef}>
       <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 0, 8]} fov={45} />
       
-      {/* Lighting */}
       <ambientLight intensity={0.5} />
       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
       <Environment preset="city" />
 
-      {/* The Paper */}
-      <primitive 
+      {/* Wrapping the GLTF in a group makes it safe to attach refs and React children */}
+      <group 
         ref={paperRef}
-        object={paper.scene} 
         position={[2, 0, 0]} 
         scale={0.5}
         rotation={[0, -Math.PI / 6, 0]}
       >
+        <primitive object={paper.scene} />
+        
+        {/* HTML UI overlaid exactly on the paper model */}
         <Html transform position={[0, 0, 0.1]} distanceFactor={2}>
           <div className="w-[300px] h-[400px] bg-black/80 backdrop-blur-md rounded-xl border border-white/20 p-4 text-white flex flex-col pointer-events-none">
              <h3 className="text-xl font-bold mb-4 text-[#009DFF]">Resume Analysis</h3>
@@ -77,17 +78,16 @@ export default function Scene() {
              </div>
           </div>
         </Html>
-      </primitive>
+      </group>
 
-      {/* The Hands */}
-      <primitive 
+      <group 
         ref={handRef}
-        object={hand.scene} 
-        position={[2, -10, 0]} // Start way below
+        position={[2, -10, 0]} 
         scale={2}
-      />
+      >
+        <primitive object={hand.scene} />
+      </group>
 
-      {/* Contact Shadows for realism */}
       <ContactShadows position={[0, -3, 0]} opacity={0.4} scale={20} blur={2} far={4.5} />
     </group>
   );
