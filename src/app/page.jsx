@@ -1,109 +1,82 @@
 "use client";
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Code2, Zap } from "lucide-react";
-import { Canvas } from "@react-three/fiber";
-import dynamic from "next/dynamic";
-import Lenis from "lenis";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-// Dynamically import Scene to completely disable Server-Side Rendering for WebGL
-const Scene = dynamic(() => import('@/components/Scene'), { 
-  ssr: false,
-});
+import { Sparkles, Zap, Play } from "lucide-react";
+import HeroAnimation from "@/components/HeroAnimation";
 
 export default function LandingPage() {
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      direction: 'vertical',
-      gestureDirection: 'vertical',
-      smooth: true,
-      mouseMultiplier: 1,
-      smoothTouch: false,
-      touchMultiplier: 2,
-    });
-
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-
-    return () => {
-      lenis.destroy();
-    };
-  }, []);
-
   return (
-    <div ref={containerRef} id="scroll-container" className="bg-[#0A0A0A] text-white relative">
+    <div className="bg-[#050508] text-white min-h-screen relative overflow-hidden flex flex-col pt-24">
+      {/* Background Glows */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#40b8ff]/10 blur-[120px] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-[#8c52ff]/10 blur-[120px] rounded-full pointer-events-none"></div>
       
-      {/* 
-        WebGL Canvas fixed in background. 
-        It handles all 3D rendering and is controlled by GSAP ScrollTrigger inside Scene.jsx 
-      */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <ErrorBoundary>
-          <Canvas shadows dpr={[1, 2]}>
-            <React.Suspense fallback={null}>
-              <Scene />
-            </React.Suspense>
-          </Canvas>
-        </ErrorBoundary>
-      </div>
-
-      {/* HTML OVERLAYS - This is what creates the scroll height */}
-      <div className="relative z-10 pointer-events-none">
-        
-        {/* Section 1: Intro */}
-        <section className="h-[150vh] flex flex-col justify-start pt-40 px-6 max-w-7xl mx-auto w-full">
-          <div className="max-w-2xl pointer-events-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-bold mb-6 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-              <Sparkles className="w-4 h-4" /> The AI Engine for Elite Engineers.
+      <main className="flex-1 flex flex-col justify-center max-w-[1400px] mx-auto px-6 w-full relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          
+          {/* Left Column: Content */}
+          <div className="max-w-xl">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#40b8ff]/30 bg-[#40b8ff]/5 mb-8">
+              <Sparkles className="w-4 h-4 text-[#40b8ff]" />
+              <span className="text-sm font-medium text-[#40b8ff]">AI-Powered Resume Intelligence</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-br from-white via-white to-gray-500 leading-tight">
+            
+            {/* Heading */}
+            <h1 className="text-6xl md:text-7xl lg:text-[5rem] font-bold tracking-tight leading-[1.1] mb-6">
               Unlock the <br />
-              <span className="text-[#009DFF] drop-shadow-[0_0_20px_rgba(0,157,255,0.4)]">Job Secret</span>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#40b8ff] via-[#668cff] to-[#b366ff] drop-shadow-[0_0_20px_rgba(64,184,255,0.3)]">
+                Job Secret
+              </span>
             </h1>
-            <p className="text-lg md:text-xl text-gray-400 mb-10 leading-relaxed">
+            
+            {/* Description */}
+            <p className="text-gray-400 text-lg md:text-xl leading-relaxed mb-10 max-w-lg">
               Bypass HR filters and ATS bots. Build cryptographically verifiable project portfolios and prove your engineering competence directly to tech recruiters.
             </p>
             
-            <div className="flex flex-col sm:flex-row items-start gap-4">
-              <Link href="/analyzer" className="group flex items-center justify-center gap-3 px-8 py-4 bg-white text-black rounded-full font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)]">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                Analyze Resume
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <Link
+                href="/analyzer"
+                className="group flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#40b8ff] to-[#8c52ff] text-white rounded-full font-bold text-lg hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_30px_rgba(64,184,255,0.4)]"
+              >
+                <Zap className="w-5 h-5 fill-current" />
+                Analyze My Resume
+              </Link>
+              
+              <Link
+                href="/demo"
+                className="group flex items-center justify-center gap-3 w-full sm:w-auto px-6 py-4 text-white hover:text-[#40b8ff] transition-colors"
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-600 group-hover:border-[#40b8ff] transition-colors">
+                  <Play className="w-4 h-4 ml-1 fill-current" />
+                </div>
+                <span className="font-semibold">See How It Works</span>
               </Link>
             </div>
           </div>
-        </section>
 
-        {/* Section 2: The Burning / Flip Phase */}
-        <section className="h-[150vh] flex flex-col justify-center items-start px-6 max-w-7xl mx-auto w-full">
-          <div className="max-w-xl pointer-events-auto">
-             <h2 className="text-4xl md:text-5xl font-bold mb-4">Your current resume <br/>is burning opportunities.</h2>
-             <p className="text-gray-400 text-lg">Stop sending generic PDFs. Our AI analyzes, restructures, and mathematically aligns your experience with the JD.</p>
+          {/* Right Column: Image Animation */}
+          <div className="w-full h-full min-h-[400px] lg:min-h-[600px] relative">
+            <HeroAnimation />
           </div>
-        </section>
+          
+        </div>
+      </main>
 
-        {/* Section 3: The Hands / Resolution Phase */}
-        <section className="h-[150vh] flex flex-col justify-center items-end text-right px-6 max-w-7xl mx-auto w-full">
-          <div className="max-w-xl pointer-events-auto">
-             <h2 className="text-4xl md:text-5xl font-bold mb-4">Hand-delivered perfection.</h2>
-             <p className="text-gray-400 text-lg mb-8">Ready to integrate our intelligence into your own platform?</p>
-             
-             <Link href="/api-access" className="inline-flex group items-center justify-center gap-3 px-8 py-4 bg-[#009DFF]/10 text-[#009DFF] border border-[#009DFF]/30 rounded-full font-bold text-lg hover:bg-[#009DFF]/20 hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,157,255,0.1)]">
-                <Code2 className="w-5 h-5" />
-                Get API Access
-              </Link>
+      {/* Bottom Element */}
+      <div className="w-full pb-8 pt-12 flex flex-col items-center justify-center relative z-10 mt-auto">
+        <div className="flex items-center justify-center w-full max-w-4xl opacity-70">
+          <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent flex-1"></div>
+          <div className="px-6 flex items-center gap-2">
+            <span className="text-xl font-bold tracking-wide">See the Magic Happen</span>
+            <Sparkles className="w-5 h-5 text-[#40b8ff]" />
           </div>
-        </section>
-
+          <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent flex-1"></div>
+        </div>
       </div>
+      
     </div>
   );
 }
