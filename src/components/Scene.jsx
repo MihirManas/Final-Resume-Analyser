@@ -1,8 +1,8 @@
 "use client";
 import React, { useRef } from 'react';
 import { useGLTF, Environment, ContactShadows, Html, PerspectiveCamera } from '@react-three/drei';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import gsap from 'gsap/dist/gsap';
+import { ScrollTrigger } from 'gsap/dist/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 
 export default function Scene() {

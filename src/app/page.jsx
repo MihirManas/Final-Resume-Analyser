@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, Code2, Zap } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import dynamic from "next/dynamic";
+import Lenis from "lenis";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Dynamically import Scene to completely disable Server-Side Rendering for WebGL
 const Scene = dynamic(() => import('@/components/Scene'), { 
@@ -14,31 +16,25 @@ export default function LandingPage() {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    let lenis;
-    const initLenis = async () => {
-      const LenisModule = (await import('lenis')).default;
-      lenis = new LenisModule({
-        duration: 1.2,
-        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-        direction: 'vertical',
-        gestureDirection: 'vertical',
-        smooth: true,
-        mouseMultiplier: 1,
-        smoothTouch: false,
-        touchMultiplier: 2,
-      });
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      direction: 'vertical',
+      gestureDirection: 'vertical',
+      smooth: true,
+      mouseMultiplier: 1,
+      smoothTouch: false,
+      touchMultiplier: 2,
+    });
 
-      function raf(time) {
-        lenis.raf(time);
-        requestAnimationFrame(raf);
-      }
+    function raf(time) {
+      lenis.raf(time);
       requestAnimationFrame(raf);
-    };
-
-    initLenis();
+    }
+    requestAnimationFrame(raf);
 
     return () => {
-      if (lenis) lenis.destroy();
+      lenis.destroy();
     };
   }, []);
 
@@ -50,11 +46,13 @@ export default function LandingPage() {
         It handles all 3D rendering and is controlled by GSAP ScrollTrigger inside Scene.jsx 
       */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <Canvas shadows dpr={[1, 2]}>
-          <React.Suspense fallback={null}>
-            <Scene />
-          </React.Suspense>
-        </Canvas>
+        <ErrorBoundary>
+          <Canvas shadows dpr={[1, 2]}>
+            <React.Suspense fallback={null}>
+              <Scene />
+            </React.Suspense>
+          </Canvas>
+        </ErrorBoundary>
       </div>
 
       {/* HTML OVERLAYS - This is what creates the scroll height */}
