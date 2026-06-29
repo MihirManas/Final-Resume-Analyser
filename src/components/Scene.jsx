@@ -1,11 +1,9 @@
 "use client";
-import React, { useRef, useLayoutEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useGLTF, Environment, ContactShadows, Html, PerspectiveCamera } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-gsap.registerPlugin(ScrollTrigger);
 
 export default function Scene() {
   const paper = useGLTF('/3d/paper_-_3mb.glb');
@@ -17,7 +15,8 @@ export default function Scene() {
   const cameraRef = useRef();
   const htmlRef = useRef();
 
-  useLayoutEffect(() => {
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
     let ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {

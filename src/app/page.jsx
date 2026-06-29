@@ -43,7 +43,9 @@ export default function LandingPage() {
       */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <Canvas shadows dpr={[1, 2]}>
-          <Scene />
+          <React.Suspense fallback={null}>
+            <Scene />
+          </React.Suspense>
         </Canvas>
       </div>
 
