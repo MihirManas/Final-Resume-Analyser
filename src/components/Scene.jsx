@@ -59,7 +59,7 @@ export default function Scene() {
       <group ref={paperRef} position={[2, 0, 0]}>
         
         {/* Inner group corrects the model's raw scale and orientation */}
-        <group scale={15} rotation={[Math.PI / 2, 0, 0]}>
+        <group scale={3} rotation={[Math.PI / 2, 0, 0]}>
           <Center>
             <primitive object={paper.scene} />
           </Center>
@@ -85,7 +85,7 @@ export default function Scene() {
 
       {/* HANDS GROUP */}
       <group ref={handRef} position={[2, -10, 0]}>
-        <group scale={15}>
+        <group scale={3}>
           <Center>
             <primitive object={hand.scene} />
           </Center>
