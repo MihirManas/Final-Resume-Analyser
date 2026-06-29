@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, FileText, Briefcase, ChevronRight, X, AlertTriangle, RefreshCw, Loader2, ArrowLeft, Sun, Moon, Sunrise, Sunset } from 'lucide-react';
 
-import { useTheme } from './hooks/useTheme';
-import { styles } from './utils/styles';
-import ParticleCanvas from './components/ParticleCanvas';
-import TicTacToeGame from './components/TicTacToeGame';
-import Dashboard from './components/Dashboard';
+import { useTheme } from '../hooks/useTheme';
+import { styles } from '../utils/styles';
+import ParticleCanvas from '../components/ParticleCanvas';
+import TicTacToeGame from '../components/TicTacToeGame';
+import Dashboard from '../components/Dashboard';
 
 export default function App() {
   const [bootComplete, setBootComplete] = useState(true);
