@@ -2,45 +2,69 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Zap, Play } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import ProcessSection from "@/components/ProcessSection";
 
 export default function LandingPage() {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isHoveringImage, setIsHoveringImage] = useState(false);
+
+  // Motion values for subtle background parallax (optional, keeps it feeling alive)
+  const mouseX = useMotionValue(0.5);
+  const mouseY = useMotionValue(0.5);
+  
+  const smoothMouseX = useSpring(mouseX, { stiffness: 40, damping: 20 });
+  const smoothMouseY = useSpring(mouseY, { stiffness: 40, damping: 20 });
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth) - 0.5,
-        y: (e.clientY / window.innerHeight) - 0.5,
-      });
+      mouseX.set(e.clientX / window.innerWidth);
+      mouseY.set(e.clientY / window.innerHeight);
     };
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
+  }, [mouseX, mouseY]);
+
+  // Subtle parallax shifts
+  const shiftX = useTransform(smoothMouseX, [0, 1], [-15, 15]);
+  const shiftY = useTransform(smoothMouseY, [0, 1], [-15, 15]);
 
   return (
     <div className="bg-[#020408] text-white min-h-screen relative overflow-hidden flex flex-col font-sans selection:bg-[#009DFF]/30">
       
       {/* 
-        Background Image (frame_02) handled with Framer Motion 
-        for precise sizing, subtle parallax blending, and masking.
+        Background Image Experiment:
+        When hovering directly over the image, it zooms in and crossfades.
       */}
       <div className="absolute top-0 right-0 bottom-0 left-0 z-0 flex justify-end pointer-events-none overflow-hidden h-[100vh]">
         <motion.div 
-          className="relative w-[130%] md:w-[85%] lg:w-[65%] h-full -right-[15%] md:-right-[5%] lg:right-0 mt-20 lg:mt-0"
-          initial={{ opacity: 0, scale: 1.03 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="relative w-[130%] md:w-[85%] lg:w-[65%] h-full -right-[15%] md:-right-[5%] lg:right-0 mt-20 lg:mt-0 pointer-events-auto cursor-default"
+          onMouseEnter={() => setIsHoveringImage(true)}
+          onMouseLeave={() => setIsHoveringImage(false)}
+          animate={{ scale: isHoveringImage ? 1.4 : 1.0 }}
+          transition={{ type: "spring", stiffness: 30, damping: 15 }}
           style={{
-            x: mousePosition.x * 15,
-            y: mousePosition.y * 15,
+            x: shiftX,
+            y: shiftY,
           }}
         >
+          {/* Base Image (No Hands / Clear Resume) - Assuming frame_01 is the clean one */}
           <img 
+            src="/video/frame_01.png" 
+            alt="Clear Burning Resume" 
+            className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
+            style={{
+              WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
+              maskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)'
+            }}
+          />
+
+          {/* Top Image (Hands) - Fades out on hover */}
+          <motion.img 
             src="/video/frame_02.png" 
-            alt="Burning Resume Magic" 
-            className="w-full h-full object-cover md:object-contain object-right opacity-95"
+            alt="Burning Resume Magic with Hands" 
+            animate={{ opacity: isHoveringImage ? 0 : 1 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
               WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
               maskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)'
@@ -49,12 +73,12 @@ export default function LandingPage() {
         </motion.div>
       </div>
 
-      <main className="flex-1 flex flex-col w-full relative z-10 pt-28 pb-10">
+      <main className="flex-1 flex flex-col w-full relative z-10 pt-28 pb-10 pointer-events-none">
         
         {/* Hero Content */}
         <div className="max-w-[1400px] mx-auto px-6 md:px-12 w-full flex-1 flex flex-col justify-center min-h-[calc(100vh-180px)]">
           <motion.div 
-            className="max-w-2xl mt-16 lg:mt-0"
+            className="max-w-2xl mt-16 lg:mt-0 pointer-events-auto"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
@@ -75,12 +99,12 @@ export default function LandingPage() {
             </h1>
             
             {/* Description */}
-            <p className="text-gray-400 text-[17px] sm:text-lg leading-relaxed mb-10 max-w-lg font-light tracking-wide">
+            <p className="text-gray-400 text-[17px] sm:text-lg leading-relaxed mb-10 max-w-lg font-light tracking-wide pointer-events-none">
               Bypass HR filters and ATS bots. Build cryptographically verifiable project portfolios and prove your engineering competence directly to tech recruiters.
             </p>
             
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center gap-5">
+            <div className="flex flex-col sm:flex-row items-center gap-5 pointer-events-auto">
               <Link href="/analyzer" className="w-full sm:w-auto">
                 <div className="group flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-[#009DFF] to-[#8c52ff] text-white rounded-full font-bold text-[15px] hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_rgba(0,157,255,0.3)] hover:shadow-[0_0_30px_rgba(0,157,255,0.5)]">
                   <Zap className="w-4 h-4 fill-current" />
@@ -102,7 +126,7 @@ export default function LandingPage() {
 
         {/* Bottom Transition Element */}
         <motion.div 
-          className="w-full pt-8 flex flex-col items-center justify-center relative z-10"
+          className="w-full pt-8 flex flex-col items-center justify-center relative z-10 pointer-events-none"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.6 }}
@@ -118,7 +142,9 @@ export default function LandingPage() {
         </motion.div>
 
         {/* Process Section */}
-        <ProcessSection />
+        <div className="pointer-events-auto">
+          <ProcessSection />
+        </div>
 
       </main>
     </div>
