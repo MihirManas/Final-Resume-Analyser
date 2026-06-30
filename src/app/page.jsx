@@ -28,8 +28,11 @@ export default function LandingPage() {
   const shiftX = useTransform(smoothMouseX, [0, 1], [-15, 15]);
   const shiftY = useTransform(smoothMouseY, [0, 1], [-15, 15]);
 
-  const imageHoverX = useMotionValue(0.2); // Default to left side (hands)
+  const imageHoverX = useMotionValue(0.15); // Default to left side (hands)
   const smoothImageHoverX = useSpring(imageHoverX, { stiffness: 40, damping: 20 });
+  
+  // Continuous zoom based on mouse position (the "chumaswari" effect)
+  const imageScale = useTransform(smoothImageHoverX, [0, 1], [1.0, 1.5]);
   
   // Opacities for smooth crossfading 3 frames based on X hover position over the image
   // Left Zone (0 to 0.4): frame_02
@@ -46,7 +49,7 @@ export default function LandingPage() {
       
       {/* 
         Background Image Experiment:
-        When hovering directly over the image, it zooms in and crossfades.
+        When hovering directly over the image, it zooms in continuously and crossfades.
       */}
       <div className="absolute top-0 right-0 bottom-0 left-0 z-0 flex justify-end pointer-events-none overflow-hidden h-[100vh]">
         <motion.div 
@@ -59,11 +62,10 @@ export default function LandingPage() {
           }}
           onMouseLeave={() => {
             setIsHoveringImage(false);
-            imageHoverX.set(0.2); // Reset to frame 2 position
+            imageHoverX.set(0.15); // Reset to frame 2 position
           }}
-          animate={{ scale: isHoveringImage ? 1.4 : 1.0 }}
-          transition={{ type: "spring", stiffness: 30, damping: 15 }}
           style={{
+            scale: imageScale,
             x: shiftX,
             y: shiftY,
           }}
