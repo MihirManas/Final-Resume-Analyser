@@ -32,9 +32,14 @@ export default function LandingPage() {
   const smoothImageHoverX = useSpring(imageHoverX, { stiffness: 40, damping: 20 });
   
   // Opacities for smooth crossfading 3 frames based on X hover position over the image
-  const frame02Opacity = useTransform(smoothImageHoverX, [0.1, 0.4], [1, 0]); // Left (default)
-  const frame01Opacity = useTransform(smoothImageHoverX, [0.1, 0.4, 0.6, 0.9], [0, 1, 1, 0]); // Middle
-  const frame03Opacity = useTransform(smoothImageHoverX, [0.6, 0.9], [0, 1]); // Right
+  // Left Zone (0 to 0.4): frame_02
+  const frame02Opacity = useTransform(smoothImageHoverX, [0, 0.25, 0.4], [1, 1, 0]);
+  
+  // Middle Zone (0.25 to 0.75): frame_01
+  const frame01Opacity = useTransform(smoothImageHoverX, [0.25, 0.4, 0.6, 0.75], [0, 1, 1, 0]);
+  
+  // Right Zone (0.6 to 1.0): frame_03
+  const frame03Opacity = useTransform(smoothImageHoverX, [0.6, 0.75, 1], [0, 1, 1]);
 
   return (
     <div className="bg-[#020408] text-white min-h-screen relative overflow-hidden flex flex-col font-sans selection:bg-[#009DFF]/30">
