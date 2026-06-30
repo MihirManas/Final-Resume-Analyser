@@ -28,6 +28,14 @@ export default function LandingPage() {
   const shiftX = useTransform(smoothMouseX, [0, 1], [-15, 15]);
   const shiftY = useTransform(smoothMouseY, [0, 1], [-15, 15]);
 
+  const imageHoverX = useMotionValue(0.2); // Default to left side (hands)
+  const smoothImageHoverX = useSpring(imageHoverX, { stiffness: 40, damping: 20 });
+  
+  // Opacities for smooth crossfading 3 frames based on X hover position over the image
+  const frame02Opacity = useTransform(smoothImageHoverX, [0.1, 0.4], [1, 0]); // Left (default)
+  const frame01Opacity = useTransform(smoothImageHoverX, [0.1, 0.4, 0.6, 0.9], [0, 1, 1, 0]); // Middle
+  const frame03Opacity = useTransform(smoothImageHoverX, [0.6, 0.9], [0, 1]); // Right
+
   return (
     <div className="bg-[#020408] text-white min-h-screen relative overflow-hidden flex flex-col font-sans selection:bg-[#009DFF]/30">
       
@@ -39,7 +47,15 @@ export default function LandingPage() {
         <motion.div 
           className="relative w-[130%] md:w-[85%] lg:w-[65%] h-full -right-[15%] md:-right-[5%] lg:right-0 mt-20 lg:mt-0 pointer-events-auto cursor-default"
           onMouseEnter={() => setIsHoveringImage(true)}
-          onMouseLeave={() => setIsHoveringImage(false)}
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            imageHoverX.set(x / rect.width);
+          }}
+          onMouseLeave={() => {
+            setIsHoveringImage(false);
+            imageHoverX.set(0.2); // Reset to frame 2 position
+          }}
           animate={{ scale: isHoveringImage ? 1.4 : 1.0 }}
           transition={{ type: "spring", stiffness: 30, damping: 15 }}
           style={{
@@ -47,25 +63,37 @@ export default function LandingPage() {
             y: shiftY,
           }}
         >
-          {/* Base Image (No Hands / Clear Resume) - Assuming frame_01 is the clean one */}
-          <img 
+          {/* Frame 01 (Middle) */}
+          <motion.img 
             src="/video/frame_01.png" 
             alt="Clear Burning Resume" 
             className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
+              opacity: frame01Opacity,
               WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
               maskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)'
             }}
           />
 
-          {/* Top Image (Hands) - Fades out on hover */}
+          {/* Frame 02 (Left / Default) */}
           <motion.img 
             src="/video/frame_02.png" 
             alt="Burning Resume Magic with Hands" 
-            animate={{ opacity: isHoveringImage ? 0 : 1 }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
             className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
+              opacity: frame02Opacity,
+              WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
+              maskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)'
+            }}
+          />
+
+          {/* Frame 03 (Right) */}
+          <motion.img 
+            src="/video/frame_03.png" 
+            alt="Burning Resume Further Interaction" 
+            className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
+            style={{
+              opacity: frame03Opacity,
               WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
               maskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)'
             }}
