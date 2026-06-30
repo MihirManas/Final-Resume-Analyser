@@ -46,7 +46,7 @@ export default function Header() {
         {/* Desktop Nav */}
         <nav className="hidden lg:flex items-center gap-10 absolute left-1/2 -translate-x-1/2">
           {navLinks.map((link) => {
-            const isActive = link.name === 'Home';
+            const isActive = pathname === link.path;
             return (
               <Link
                 key={link.name}
