@@ -7,6 +7,7 @@ import ProcessSection from "@/components/ProcessSection";
 
 export default function LandingPage() {
   const [isHoveringImage, setIsHoveringImage] = useState(false);
+  const [activeFrame, setActiveFrame] = useState(2); // 2 is the default (hands)
 
   // Motion values for subtle background parallax (optional, keeps it feeling alive)
   const mouseX = useMotionValue(0.5);
@@ -28,18 +29,38 @@ export default function LandingPage() {
   const shiftX = useTransform(smoothMouseX, [0, 1], [-15, 15]);
   const shiftY = useTransform(smoothMouseY, [0, 1], [-15, 15]);
 
+  const handleImageHoverMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const ratio = x / rect.width; // 0 (left) to 1 (right)
+    
+    if (ratio < 0.33) {
+      setActiveFrame(2); // Left far -> frame_2
+    } else if (ratio < 0.66) {
+      setActiveFrame(1); // Middle -> frame_1
+    } else {
+      setActiveFrame(3); // Right far -> frame_3
+    }
+  };
+
+  const handleImageLeave = () => {
+    setIsHoveringImage(false);
+    setActiveFrame(2); // reset to default
+  };
+
   return (
     <div className="bg-[#020408] text-white min-h-screen relative overflow-hidden flex flex-col font-sans selection:bg-[#009DFF]/30">
       
       {/* 
         Background Image Experiment:
-        When hovering directly over the image, it zooms in and crossfades.
+        When hovering directly over the image, it zooms in and crossfades between 3 frames based on X position.
       */}
       <div className="absolute top-0 right-0 bottom-0 left-0 z-0 flex justify-end pointer-events-none overflow-hidden h-[100vh]">
         <motion.div 
           className="relative w-[130%] md:w-[85%] lg:w-[65%] h-full -right-[15%] md:-right-[5%] lg:right-0 mt-20 lg:mt-0 pointer-events-auto cursor-default"
           onMouseEnter={() => setIsHoveringImage(true)}
-          onMouseLeave={() => setIsHoveringImage(false)}
+          onMouseMove={handleImageHoverMove}
+          onMouseLeave={handleImageLeave}
           animate={{ scale: isHoveringImage ? 1.4 : 1.0 }}
           transition={{ type: "spring", stiffness: 30, damping: 15 }}
           style={{
@@ -47,10 +68,12 @@ export default function LandingPage() {
             y: shiftY,
           }}
         >
-          {/* Base Image (No Hands / Clear Resume) - Assuming frame_01 is the clean one */}
-          <img 
+          {/* Frame 1 (Middle - Towards Burning Resume) */}
+          <motion.img 
             src="/video/frame_01.png" 
             alt="Clear Burning Resume" 
+            animate={{ opacity: activeFrame === 1 ? 1 : 0 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
             className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
               WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
@@ -58,12 +81,25 @@ export default function LandingPage() {
             }}
           />
 
-          {/* Top Image (Hands) - Fades out on hover */}
+          {/* Frame 2 (Left Far - Default Hands) */}
           <motion.img 
             src="/video/frame_02.png" 
             alt="Burning Resume Magic with Hands" 
-            animate={{ opacity: isHoveringImage ? 0 : 1 }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
+            animate={{ opacity: activeFrame === 2 ? 1 : 0 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+            className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
+            style={{
+              WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
+              maskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)'
+            }}
+          />
+
+          {/* Frame 3 (Right Far - New state) */}
+          <motion.img 
+            src="/video/frame_03.png" 
+            alt="Further Interaction" 
+            animate={{ opacity: activeFrame === 3 ? 1 : 0 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
             className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
               WebkitMaskImage: 'radial-gradient(circle at 60% 50%, black 40%, transparent 80%)',
