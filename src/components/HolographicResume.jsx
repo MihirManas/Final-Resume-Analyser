@@ -209,7 +209,8 @@ const PDFMesh = ({ texture, isTransitioning }) => {
         <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
         <lineSegments>
           <edgesGeometry args={[new THREE.PlaneGeometry(WIDTH, HEIGHT)]} />
-          <lineBasicMaterial color="#009DFF" linewidth={2} transparent opacity={0.6} />
+          {/* Use HDR values for color to force it to bloom past the 1.5 threshold */}
+          <lineBasicMaterial color={[0.0, 2.0, 5.0]} linewidth={2} transparent opacity={0.8} />
         </lineSegments>
       </mesh>
 
@@ -312,7 +313,7 @@ export default function HolographicResume({ file, isTransitioning }) {
         
         <EffectComposer disableNormalPass>
           <Bloom 
-            luminanceThreshold={1.0} 
+            luminanceThreshold={1.5} 
             luminanceSmoothing={0.1} 
             intensity={2.0} 
             mipmapBlur 
