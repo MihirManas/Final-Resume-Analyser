@@ -119,7 +119,7 @@ export default function AnalyzerPage() {
   };
 
   if (analysisResult) {
-    return <div className="min-h-screen bg-[#010409]"><Dashboard result={analysisResult} onReset={() => setAnalysisResult(null)} /></div>;
+    return <div className="h-[calc(100vh-112px)] mt-28 bg-[#010409]"><Dashboard result={analysisResult} onReset={() => setAnalysisResult(null)} /></div>;
   }
 
   if (isLoading) {
@@ -129,28 +129,7 @@ export default function AnalyzerPage() {
   return (
     <div className="min-h-screen bg-[#010409] text-white overflow-hidden flex flex-col font-sans">
       
-      {/* EXACT NAVBAR */}
-      <nav className="w-full flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#010409]/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-2 cursor-pointer">
-          <div className="w-8 h-8 rounded-lg bg-[#009DFF] flex items-center justify-center p-1.5">
-             <div className="w-full h-full rounded-full border-2 border-[#010409]" />
-          </div>
-          <span className="font-bold text-lg tracking-wide">My Job <span className="text-[#009DFF]">Secret</span></span>
-        </div>
-        
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-          <span className="text-[#009DFF] border-b-2 border-[#009DFF] pb-1 cursor-pointer">Analyzer</span>
-          <span className="text-white/60 hover:text-white cursor-pointer transition-colors">How It Works</span>
-          <span className="text-white/60 hover:text-white cursor-pointer transition-colors">Pricing</span>
-          <span className="text-white/60 hover:text-white cursor-pointer transition-colors">About</span>
-        </div>
-        
-        <button className="px-6 py-2 rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white font-medium text-sm hover:opacity-90 transition-opacity flex items-center gap-2">
-          Get Started <ArrowRight size={16} />
-        </button>
-      </nav>
-
-      <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto p-6 lg:p-8">
+      <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto p-6 lg:p-8 pt-32">
         
         {/* EXACT PROGRESS BAR */}
         <div className="w-full max-w-3xl mx-auto mb-12">

@@ -101,7 +101,7 @@ export default function Dashboard({ result, onReset }) {
   );
 
   return (
-    <div className="flex h-screen w-full bg-[#02050A] text-white overflow-hidden font-sans absolute inset-0 z-50">
+    <div className="flex h-full w-full bg-[#02050A] text-white overflow-hidden font-sans">
       
       {/* LEFT SIDEBAR */}
       <div className="w-64 flex flex-col bg-[#02050A] border-r border-[#111A2C] flex-shrink-0 z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)]">

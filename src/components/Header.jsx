@@ -6,7 +6,6 @@ import { Shield, ArrowRight } from 'lucide-react';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -27,24 +26,11 @@ export default function Header() {
 
   return (
     <>
-      {/* Invisible hit area to trigger hover when hidden on analyzer page */}
-      {pathname === '/analyzer' && (
-        <div 
-          className="fixed top-0 left-0 right-0 h-20 z-[60]" 
-          onMouseEnter={() => setIsHovered(true)} 
-        />
-      )}
-
       <header 
-        onMouseLeave={() => setIsHovered(false)}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isScrolled && (pathname !== '/analyzer' || isHovered)
-            ? 'bg-[#020408]/90 backdrop-blur-md' 
+          isScrolled
+            ? 'bg-[#020408]/90 backdrop-blur-md border-b border-white/5' 
             : 'bg-transparent'
-        } ${
-          pathname === '/analyzer' && !isHovered
-            ? '-translate-y-full opacity-0'
-            : 'translate-y-0 opacity-100'
         }`}
       >
       <div className="max-w-[1400px] mx-auto px-6 md:px-12 h-28 flex items-center justify-between">
