@@ -51,14 +51,14 @@ const ShatterShader = {
       if (uProgress > 0.0) {
         // Delay explosion based on y so it shatters from bottom to top
         float delay = (1.0 - instanceUv.y) * 0.3;
-        float localProgress = clamp((uProgress - delay) * 1.5, 0.0, 1.0);
+        float localProgress = clamp((uProgress - delay) * 2.0, 0.0, 1.0);
         float ease = pow(localProgress, 2.0);
         
-        // Scatter outward violently
-        vec3 targetPos = aRandom * vec3(10.0, 10.0, 20.0); 
+        // Scatter outward violently across the entire page
+        vec3 targetPos = aRandom * vec3(50.0, 50.0, 30.0); 
         
         // Individual cube rotation
-        mat4 rot = rotationMatrix(aRandom, localProgress * 15.0);
+        mat4 rot = rotationMatrix(aRandom, localProgress * 30.0);
         pos = (rot * vec4(pos, 1.0)).xyz;
         
         vec4 instancePosition = instanceMatrix * vec4(pos, 1.0);
@@ -85,15 +85,27 @@ const ShatterShader = {
         return;
       }
 
-      // Burning Coals Colors (Glowing Blue and Red)
-      vec3 blueGlow = vec3(0.0, 0.6, 1.0) * 4.0; 
-      vec3 redGlow = vec3(1.0, 0.1, 0.0) * 4.0;
+      // Exactly matching the reference image colors
+      // Electric Blue Energy
+      vec3 blueCore = vec3(0.0, 0.9, 1.0) * 4.0; 
+      vec3 blueEdge = vec3(0.0, 0.3, 0.8) * 2.0;
       
-      // Randomly assign cubes to be blue or red based on random attribute
-      vec3 targetColor = mix(blueGlow, redGlow, step(0.5, vRandom.x));
+      // Burning Coals / Fire (Orange/Yellow/Red)
+      vec3 fireCore = vec3(1.0, 0.7, 0.1) * 4.5;
+      vec3 fireEdge = vec3(1.0, 0.2, 0.0) * 2.5;
+      
+      // Select Blue or Fire based on aRandom
+      float isBlue = step(0.5, vRandom.x);
+      
+      vec3 targetColor;
+      if (isBlue > 0.5) {
+        targetColor = mix(blueEdge, blueCore, fract(vRandom.y * 10.0));
+      } else {
+        targetColor = mix(fireEdge, fireCore, fract(vRandom.y * 10.0));
+      }
       
       // Mix from original document color to the glowing color as it shatters
-      float localProgress = clamp(vProgress * 1.5, 0.0, 1.0);
+      float localProgress = clamp(vProgress * 2.0, 0.0, 1.0);
       vec3 finalColor = mix(texColor.rgb, targetColor, localProgress);
       
       // Fade out at the very end
@@ -207,11 +219,6 @@ const PDFMesh = ({ texture, isTransitioning }) => {
       <mesh ref={solidPlaneRef}>
         <planeGeometry args={[WIDTH, HEIGHT, 1, 1]} />
         <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
-        <lineSegments>
-          <edgesGeometry args={[new THREE.PlaneGeometry(WIDTH, HEIGHT)]} />
-          {/* Use HDR values for color to force it to bloom past the 1.5 threshold */}
-          <lineBasicMaterial color={[0.0, 2.0, 5.0]} linewidth={2} transparent opacity={0.8} />
-        </lineSegments>
       </mesh>
 
       {/* Instanced Mesh - Visible only during shatter transition */}
