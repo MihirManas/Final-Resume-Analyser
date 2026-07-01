@@ -206,7 +206,7 @@ const PDFMesh = ({ texture, isTransitioning }) => {
       {/* Solid Plane - Visible when idle for perfect quality */}
       <mesh ref={solidPlaneRef}>
         <planeGeometry args={[WIDTH, HEIGHT, 1, 1]} />
-        <meshBasicMaterial map={texture} side={THREE.DoubleSide} transparent />
+        <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
         <lineSegments>
           <edgesGeometry args={[new THREE.PlaneGeometry(WIDTH, HEIGHT)]} />
           <lineBasicMaterial color="#009DFF" linewidth={2} transparent opacity={0.6} />
@@ -244,7 +244,7 @@ export default function HolographicResume({ file, isTransitioning }) {
         const pdf = await loadingTask.promise;
         const page = await pdf.getPage(1);
 
-        const scale = 3; 
+        const scale = 5; 
         const viewport = page.getViewport({ scale });
 
         const canvas = document.createElement('canvas');
@@ -265,10 +265,11 @@ export default function HolographicResume({ file, isTransitioning }) {
         await page.render(renderContext).promise;
 
         const tex = new THREE.CanvasTexture(canvas);
-        tex.minFilter = THREE.LinearFilter;
-        tex.magFilter = THREE.LinearFilter;
-        tex.generateMipmaps = false;
         tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 16;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.generateMipmaps = true;
         
         setTexture(tex);
         URL.revokeObjectURL(fileURL);
