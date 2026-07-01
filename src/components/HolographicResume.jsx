@@ -32,19 +32,19 @@ const Platform = () => {
       {rings.map((ring, i) => (
         <mesh key={i}>
           <torusGeometry args={[ring.r, ring.thick, 64, 100]} />
-          <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0).multiplyScalar(2.5)} transparent opacity={ring.op} />
+          <meshBasicMaterial color="#0066ff" transparent opacity={ring.op} />
         </mesh>
       ))}
       
       {/* Dashed outer ring */}
       <mesh>
         <torusGeometry args={[3.2, 0.01, 16, 100]} />
-        <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0)} transparent opacity={0.6} wireframe />
+        <meshBasicMaterial color="#0066ff" transparent opacity={0.6} wireframe />
       </mesh>
       
       <mesh>
         <circleGeometry args={[2.8, 64]} />
-        <meshBasicMaterial color={new THREE.Color(0.0, 0.2, 0.6)} transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color="#002288" transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </group>
   );
@@ -148,17 +148,17 @@ const DocumentMesh = ({ texture, visible }) => {
 
       {/* The Folded Flap */}
       <mesh geometry={foldGeometry} position={[0, 0, 0.02]}>
-         <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0)} transparent opacity={visible ? 0.4 : 0} side={THREE.DoubleSide} />
+         <meshBasicMaterial color="#0066ff" transparent opacity={visible ? 0.4 : 0} side={THREE.DoubleSide} />
       </mesh>
       
       {/* Glowing Outlines */}
       {visible && (
         <group>
           <lineSegments geometry={edges}>
-            <lineBasicMaterial color={new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(2.5)} transparent opacity={0.8} />
+            <lineBasicMaterial color="#009DFF" transparent opacity={0.8} />
           </lineSegments>
           <lineSegments geometry={foldEdges} position={[0, 0, 0.02]}>
-            <lineBasicMaterial color={new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(2.5)} transparent opacity={0.8} />
+            <lineBasicMaterial color="#009DFF" transparent opacity={0.8} />
           </lineSegments>
         </group>
       )}
@@ -212,13 +212,8 @@ export default function HolographicResume({ file, currentStep }) {
   return (
     <Canvas camera={{ position: [0, 0, 7.5], fov: 45 }} gl={{ toneMapping: THREE.NoToneMapping, alpha: true }}>
       <ambientLight intensity={0.5} />
-      
       <Platform />
       <DocumentMesh texture={texture} visible={showDocument} />
-      
-      <EffectComposer disableNormalPass>
-        <Bloom luminanceThreshold={1.0} luminanceSmoothing={0.3} intensity={2.0} mipmapBlur />
-      </EffectComposer>
     </Canvas>
   );
 }

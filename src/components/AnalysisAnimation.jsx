@@ -37,11 +37,11 @@ const StreamShader = {
     varying float vAlpha;
     
     void main() {
-      // Colors matching image exactly
-      vec3 colBlue = vec3(0.0, 0.6, 1.0) * 3.0;
-      vec3 colPurple = vec3(0.6, 0.0, 1.0) * 2.5;
-      vec3 colGreen = vec3(0.0, 1.0, 0.4) * 2.5;
-      vec3 colOrange = vec3(1.0, 0.4, 0.0) * 3.0;
+      // Simple neon colors
+      vec3 colBlue = vec3(0.0, 0.6, 1.0);
+      vec3 colPurple = vec3(0.6, 0.0, 1.0);
+      vec3 colGreen = vec3(0.0, 1.0, 0.4);
+      vec3 colOrange = vec3(1.0, 0.4, 0.0);
       
       vec3 color = colBlue;
       float splitPhase = smoothstep(2.0, 3.0, uStage);
@@ -49,8 +49,8 @@ const StreamShader = {
       if (aCurveIndex > 1.5 && aCurveIndex < 2.5) color = mix(colBlue, colGreen, splitPhase);
       if (aCurveIndex > 2.5) color = mix(colBlue, colOrange, splitPhase);
       
-      // Core Brightness
-      if (aSize > 0.1) color = mix(color, vec3(1.0,1.0,1.0)*2.0, 0.4);
+      // Core Brightness (No massive glow multiplier)
+      if (aSize > 0.1) color = mix(color, vec3(1.0, 1.0, 1.0), 0.5);
       vColor = color;
       
       float speed = mix(0.1, 0.25, smoothstep(2.0, 5.0, uStage));
@@ -248,11 +248,11 @@ const ProcessingCore = ({ currentStage, texture }) => {
       {/* Wireframe Data Core */}
       <mesh ref={coreRef} scale={[0.01, 0.01, 0.01]}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color={new THREE.Color(0.0, 0.6, 1.0).multiplyScalar(2.0)} wireframe transparent opacity={0} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color="#009DFF" wireframe transparent opacity={0} blending={THREE.AdditiveBlending} />
         {/* Inner solid core */}
         <mesh scale={[0.6, 0.6, 0.6]}>
            <boxGeometry args={[1, 1, 1]} />
-           <meshBasicMaterial color={new THREE.Color(0.0, 0.3, 1.0).multiplyScalar(3.0)} transparent opacity={0.5} blending={THREE.AdditiveBlending} />
+           <meshBasicMaterial color="#0055ff" transparent opacity={0.3} blending={THREE.AdditiveBlending} />
         </mesh>
       </mesh>
       
@@ -290,15 +290,15 @@ const Platform = ({ currentStage }) => {
     <group position={[3.0, -2.5, 0]} rotation={[Math.PI / 2.3, 0, 0]} ref={groupRef}>
       <mesh>
         <torusGeometry args={[2.8, 0.015, 32, 100]} />
-        <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0).multiplyScalar(2.0)} transparent opacity={0.8} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color="#0066ff" transparent opacity={0.8} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh>
         <torusGeometry args={[2.0, 0.01, 16, 100]} />
-        <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0).multiplyScalar(1.5)} transparent opacity={0.5} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color="#0055ff" transparent opacity={0.5} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh>
         <circleGeometry args={[2.8, 64]} />
-        <meshBasicMaterial color={new THREE.Color(0.0, 0.3, 0.8)} transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color="#002288" transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </group>
   );
@@ -412,9 +412,6 @@ export default function AnalysisAnimation({ file, onCancel }) {
         <ParticleStreams currentStage={currentStage} />
         <ProcessingCore currentStage={currentStage} texture={texture} />
         <Platform currentStage={currentStage} />
-        <EffectComposer disableNormalPass>
-          <Bloom luminanceThreshold={1.0} luminanceSmoothing={0.4} intensity={2.5} mipmapBlur />
-        </EffectComposer>
       </Canvas>
 
       <LabelsOverlay currentStage={currentStage} />

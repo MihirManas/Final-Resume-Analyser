@@ -65,12 +65,12 @@ export default function AnalyzerPage() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      setAnalysisResult({ complete: true });
+      setAnalysisResult({ complete: true, real_result: null, analysis_id: 'dummy' });
     }, 31000); // 31 seconds for 9 stages
   };
 
   if (analysisResult) {
-    return <div className="min-h-screen bg-[#010409]"><Dashboard /></div>;
+    return <div className="min-h-screen bg-[#010409]"><Dashboard result={analysisResult} onReset={() => setAnalysisResult(null)} /></div>;
   }
 
   if (isLoading) {
