@@ -157,7 +157,7 @@ export default function AnalyzerPage() {
           {/* Active progress line connecting completed steps */}
           <div 
             className="absolute top-4 left-[5%] h-[2px] bg-[#009DFF] z-0 transition-all duration-500 shadow-[0_0_10px_rgba(0,157,255,0.5)]"
-            style={{ width: \`\${((currentStep - 1) / 3) * 90}%\` }}
+            style={{ width: `${((currentStep - 1) / 3) * 90}%` }}
           />
         </div>
 
@@ -231,7 +231,7 @@ export default function AnalyzerPage() {
                       <button 
                         key={i} 
                         onClick={() => setTargetRole(role.name)}
-                        className={\`flex items-center gap-3 p-3 rounded-lg border text-sm transition-all \${targetRole === role.name ? 'border-[#009DFF] bg-[#009DFF]/10 shadow-[0_0_15px_rgba(0,157,255,0.15)] text-white' : 'border-white/5 bg-[#030812] text-white/60 hover:border-white/20'}\`}
+                        className={`flex items-center gap-3 p-3 rounded-lg border text-sm transition-all ${targetRole === role.name ? 'border-[#009DFF] bg-[#009DFF]/10 shadow-[0_0_15px_rgba(0,157,255,0.15)] text-white' : 'border-white/5 bg-[#030812] text-white/60 hover:border-white/20'}`}
                       >
                         <span className="text-base">{role.icon}</span> {role.name}
                       </button>
@@ -253,10 +253,10 @@ export default function AnalyzerPage() {
                   <p className="text-white/50 text-sm mb-6">Add the job description to get more accurate analysis and better recommendations.</p>
                   
                   <div className="flex gap-2 mb-4 bg-[#030812] p-1 rounded-xl w-max border border-white/5">
-                    <button onClick={() => setJdMode('paste')} className={\`px-6 py-2 rounded-lg text-sm font-medium transition-all \${jdMode === 'paste' ? 'bg-[#009DFF]/20 text-[#009DFF] border border-[#009DFF]/30 shadow-[0_0_10px_rgba(0,157,255,0.2)]' : 'text-white/40 hover:text-white'}\`}>
+                    <button onClick={() => setJdMode('paste')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${jdMode === 'paste' ? 'bg-[#009DFF]/20 text-[#009DFF] border border-[#009DFF]/30 shadow-[0_0_10px_rgba(0,157,255,0.2)]' : 'text-white/40 hover:text-white'}`}>
                       Paste Job Description
                     </button>
-                    <button onClick={() => setJdMode('upload')} className={\`px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 \${jdMode === 'upload' ? 'bg-[#009DFF]/20 text-[#009DFF] border border-[#009DFF]/30 shadow-[0_0_10px_rgba(0,157,255,0.2)]' : 'text-white/40 hover:text-white'}\`}>
+                    <button onClick={() => setJdMode('upload')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${jdMode === 'upload' ? 'bg-[#009DFF]/20 text-[#009DFF] border border-[#009DFF]/30 shadow-[0_0_10px_rgba(0,157,255,0.2)]' : 'text-white/40 hover:text-white'}`}>
                       <Upload size={14} /> Upload JD
                     </button>
                   </div>
@@ -304,7 +304,7 @@ export default function AnalyzerPage() {
                         <button 
                           key={i} 
                           onClick={() => toggleChallenge(c)}
-                          className={\`flex items-center justify-between p-3.5 rounded-xl border text-sm text-left transition-all \${isSelected ? 'border-[#009DFF] bg-[#009DFF]/10 text-white shadow-[0_0_15px_rgba(0,157,255,0.1)]' : 'border-white/5 bg-[#030812] text-white/60 hover:border-white/20'}\`}
+                          className={`flex items-center justify-between p-3.5 rounded-xl border text-sm text-left transition-all ${isSelected ? 'border-[#009DFF] bg-[#009DFF]/10 text-white shadow-[0_0_15px_rgba(0,157,255,0.1)]' : 'border-white/5 bg-[#030812] text-white/60 hover:border-white/20'}`}
                         >
                           <div className="flex items-center gap-3">
                             {/* Dummy icon for layout */}
@@ -313,7 +313,7 @@ export default function AnalyzerPage() {
                             </div>
                             <span className="truncate pr-2">{c}</span>
                           </div>
-                          <div className={\`w-4 h-4 rounded border flex items-center justify-center transition-all \${isSelected ? 'bg-[#009DFF] border-[#009DFF]' : 'border-white/20'}\`}>
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-[#009DFF] border-[#009DFF]' : 'border-white/20'}`}>
                              {isSelected && <Check size={10} className="text-white" strokeWidth={4} />}
                           </div>
                         </button>
@@ -323,10 +323,10 @@ export default function AnalyzerPage() {
                     {/* Other Box */}
                     <button 
                       onClick={() => toggleChallenge('Other')}
-                      className={\`flex items-center justify-between p-3.5 rounded-xl border text-sm transition-all \${selectedChallenges.includes('Other') ? 'border-[#009DFF] bg-[#009DFF]/10 text-white shadow-[0_0_15px_rgba(0,157,255,0.1)]' : 'border-white/5 bg-[#030812] text-white/60 hover:border-white/20'}\`}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border text-sm transition-all ${selectedChallenges.includes('Other') ? 'border-[#009DFF] bg-[#009DFF]/10 text-white shadow-[0_0_15px_rgba(0,157,255,0.1)]' : 'border-white/5 bg-[#030812] text-white/60 hover:border-white/20'}`}
                     >
                       <span>Other (please specify)</span>
-                      <div className={\`w-4 h-4 rounded border flex items-center justify-center \${selectedChallenges.includes('Other') ? 'bg-[#009DFF] border-[#009DFF]' : 'border-white/20'}\`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedChallenges.includes('Other') ? 'bg-[#009DFF] border-[#009DFF]' : 'border-white/20'}`}>
                          {selectedChallenges.includes('Other') && <Check size={10} className="text-white" strokeWidth={4} />}
                       </div>
                     </button>
@@ -350,7 +350,7 @@ export default function AnalyzerPage() {
             <div className="mt-auto pt-8 flex items-center justify-between w-full border-t border-white/5">
               <button 
                 onClick={handleBack} 
-                className={\`px-6 py-2 rounded-full text-sm font-medium transition-all \${currentStep > 1 ? 'text-white/60 hover:text-white bg-white/5 hover:bg-white/10' : 'text-transparent pointer-events-none'}\`}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${currentStep > 1 ? 'text-white/60 hover:text-white bg-white/5 hover:bg-white/10' : 'text-transparent pointer-events-none'}`}
               >
                 &lt; Back
               </button>
@@ -358,11 +358,11 @@ export default function AnalyzerPage() {
               <button 
                 onClick={handleNext} 
                 disabled={currentStep === 1 && !resumeFile}
-                className={\`px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 \${
+                className={`px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
                   (currentStep === 1 && !resumeFile)
                     ? 'bg-white/5 text-white/20 cursor-not-allowed'
                     : 'bg-gradient-to-r from-[#0055ff] to-[#8c52ff] text-white shadow-[0_0_20px_rgba(0,85,255,0.4)] hover:shadow-[0_0_30px_rgba(0,85,255,0.6)] hover:scale-[1.02]'
-                }\`}
+                }`}
               >
                 {currentStep === 4 ? 'Start AI Analysis' : 'Next'} 
                 <ChevronRight size={16} />

@@ -380,7 +380,7 @@ const LabelsOverlay = ({ currentStage }) => {
           style={{ 
             top: lbl.top, 
             left: lbl.left,
-            animation: \`fadeIn 0.5s \${i * 0.2}s ease-out both\` 
+            animation: `fadeIn 0.5s ${i * 0.2}s ease-out both` 
           }}
         >
           <div 
@@ -388,7 +388,7 @@ const LabelsOverlay = ({ currentStage }) => {
             style={{ 
               borderColor: lbl.color, 
               color: 'white', 
-              boxShadow: \`0 0 20px \${lbl.color}60\` 
+              boxShadow: `0 0 20px ${lbl.color}60` 
             }}
           >
             {lbl.text}
@@ -407,10 +407,10 @@ const LabelsOverlay = ({ currentStage }) => {
           </svg>
         </div>
       ))}
-      <style dangerouslySetInnerHTML={{__html: \`
+      <style dangerouslySetInnerHTML={{__html: `
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes dash { to { stroke-dashoffset: -200; } }
-      \`}} />
+      `}} />
     </div>
   );
 };
@@ -500,10 +500,10 @@ export default function AnalysisAnimation({ file, onCancel }) {
         </button>
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: \`
+      <style dangerouslySetInnerHTML={{__html: `
         @keyframes fadeInTitle { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes fadeInSub { from { opacity: 0; } to { opacity: 1; } }
-      \`}} />
+      `}} />
     </div>
   );
 }
