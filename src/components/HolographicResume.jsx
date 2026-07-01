@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -49,16 +49,22 @@ const ShatterShader = {
       vec3 pos = position;
       
       if (uProgress > 0.0) {
-        // Delay explosion based on y so it shatters from bottom to top
-        float delay = (1.0 - instanceUv.y) * 0.3;
-        float localProgress = clamp((uProgress - delay) * 2.0, 0.0, 1.0);
+        // Reverse wave logic: uProgress 0.0 means completely scattered. 1.0 means fully assembled.
+        // As uProgress approaches 1.0, they fly IN to the final position.
+        float invertedProgress = 1.0 - uProgress;
+        
+        // Delay gathering based on x so it forms a wave from right to left (or left to right)
+        float delay = instanceUv.x * 0.3;
+        float localProgress = clamp((invertedProgress - delay) * 2.0, 0.0, 1.0);
         float ease = pow(localProgress, 2.0);
         
-        // Scatter outward violently across the entire page
-        vec3 targetPos = aRandom * vec3(50.0, 50.0, 30.0); 
+        // Scatter outward violently across the entire page when localProgress is high
+        vec3 targetPos = aRandom * vec3(60.0, 60.0, 30.0);
+        // Add a massive sweep to the left
+        targetPos.x -= 40.0;
         
         // Individual cube rotation
-        mat4 rot = rotationMatrix(aRandom, localProgress * 30.0);
+        mat4 rot = rotationMatrix(aRandom, localProgress * 40.0);
         pos = (rot * vec4(pos, 1.0)).xyz;
         
         vec4 instancePosition = instanceMatrix * vec4(pos, 1.0);
@@ -78,9 +84,11 @@ const ShatterShader = {
     varying vec3 vRandom;
 
     void main() {
+      // Darken the base paper slightly so it doesn't wash out the black text
       vec4 texColor = texture2D(tDiffuse, vUv);
+      texColor.rgb *= 0.85; 
       
-      if (vProgress == 0.0) {
+      if (vProgress == 1.0) {
         gl_FragColor = texColor;
         return;
       }
@@ -104,11 +112,12 @@ const ShatterShader = {
         targetColor = mix(fireEdge, fireCore, fract(vRandom.y * 10.0));
       }
       
-      // Mix from original document color to the glowing color as it shatters
-      float localProgress = clamp(vProgress * 2.0, 0.0, 1.0);
+      // Mix from the glowing color to the original document color as it gathers
+      float invertedProgress = 1.0 - vProgress;
+      float localProgress = clamp(invertedProgress * 2.0, 0.0, 1.0);
       vec3 finalColor = mix(texColor.rgb, targetColor, localProgress);
       
-      // Fade out at the very end
+      // Fade in at the beginning of the gathering
       float alpha = 1.0 - pow(localProgress, 3.0);
       
       gl_FragColor = vec4(finalColor, alpha);
@@ -183,15 +192,19 @@ const PDFMesh = ({ texture, isTransitioning }) => {
     
     if (materialRef.current) {
       if (isTransitioning) {
-        // Swap to instanced mesh
+        // Swap to instanced mesh for the assembly wave
         solidPlaneRef.current.visible = false;
         instancedMeshRef.current.visible = true;
         
         if (materialRef.current.uniforms.uProgress.value < 1.0) {
-          materialRef.current.uniforms.uProgress.value += 0.012; // Controls speed of shatter
+          materialRef.current.uniforms.uProgress.value += 0.012; // Controls speed of assembly
+        } else {
+          // Once assembled, show solid plane
+          solidPlaneRef.current.visible = true;
+          instancedMeshRef.current.visible = false;
         }
       } else {
-        // Swap to solid plane
+        // When not transitioning, ensure it's solid
         solidPlaneRef.current.visible = true;
         instancedMeshRef.current.visible = false;
         materialRef.current.uniforms.uProgress.value = 0.0;
@@ -212,13 +225,16 @@ const PDFMesh = ({ texture, isTransitioning }) => {
     };
   }, [texture]);
 
+  const { viewport } = useThree();
+  
   return (
-    <group ref={groupRef}>
+    // Position it on the right side of the screen (about 25% from center)
+    <group ref={groupRef} position={[viewport.width * 0.2, 0, 0]}>
       
-      {/* Solid Plane - Visible when idle for perfect quality */}
+      {/* Solid Plane - Darken the base color slightly for realism */}
       <mesh ref={solidPlaneRef}>
         <planeGeometry args={[WIDTH, HEIGHT, 1, 1]} />
-        <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
+        <meshBasicMaterial map={texture} color="#d0d0d0" side={THREE.DoubleSide} />
       </mesh>
 
       {/* Instanced Mesh - Visible only during shatter transition */}

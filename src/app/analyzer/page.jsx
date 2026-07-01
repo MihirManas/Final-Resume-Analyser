@@ -461,7 +461,7 @@ export default function App() {
                   RIGHT SIDE / CENTER: HOLOGRAPHIC RESUME
                   ========================================= */}
               <motion.div 
-                className="absolute z-0 flex flex-col items-center justify-center pointer-events-none"
+                className="absolute z-10 flex flex-col items-center justify-center pointer-events-none"
                 initial={false}
                 animate={{
                   x: currentStep === 1 ? 0 : '15vw', // Move right on steps 2-4
@@ -469,13 +469,6 @@ export default function App() {
                 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 120 }}
               >
-                {/* Holographic Document (Only visible if uploaded or reconstructing) */}
-                {(resumeFile || isHologramReconstructing) && (
-                  <div className="relative mb-12 z-20 w-[400px] h-[550px] pointer-events-auto flex items-center justify-center">
-                     <HolographicResume file={resumeFile} isTransitioning={isTransitioning} />
-                  </div>
-                )}
-
                 {/* Glowing Platform (Always visible during transition) */}
                 <div className="relative flex items-center justify-center mt-12" ref={platformRef}>
                   {/* Energy Beam (Hidden by default, triggered by GSAP) */}
@@ -488,6 +481,14 @@ export default function App() {
                   <div className={`absolute w-[100px] h-[25px] rounded-[100%] bg-[#009DFF] blur-xl platform-ring ${isDraggingOver ? 'scale-150 opacity-100' : 'opacity-60'} transition-all duration-300`} style={{ transform: 'rotateX(75deg)' }} />
                 </div>
               </motion.div>
+
+              {/* Full-Screen Holographic Canvas */}
+              {(resumeFile || isHologramReconstructing) && (
+                <div className="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden">
+                   <HolographicResume file={resumeFile} isTransitioning={isTransitioning} />
+                </div>
+              )}
+
 
               {/* =========================================
                   LEFT SIDE: INTERACTIVE WIZARD
