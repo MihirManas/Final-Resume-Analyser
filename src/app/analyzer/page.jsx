@@ -129,7 +129,7 @@ export default function AnalyzerPage() {
   return (
     <div className="min-h-screen bg-[#010409] text-white overflow-hidden flex flex-col font-sans">
       
-      <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto p-6 lg:p-8 pt-32">
+      <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-6 lg:px-8 pb-6 lg:pb-8 pt-32 lg:pt-36">
         
         {/* EXACT PROGRESS BAR */}
         <div className="w-full max-w-3xl mx-auto mb-12">
