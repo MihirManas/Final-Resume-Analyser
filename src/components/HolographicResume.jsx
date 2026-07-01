@@ -254,8 +254,13 @@ export default function HolographicResume({ file, isTransitioning }) {
 
         const renderContext = {
           canvasContext: context,
-          viewport: viewport
+          viewport: viewport,
+          background: 'rgba(255,255,255,1)' // Ensure pdf.js fills background
         };
+        
+        // Also manually fill just in case
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, canvas.width, canvas.height);
         
         await page.render(renderContext).promise;
 
@@ -294,15 +299,23 @@ export default function HolographicResume({ file, isTransitioning }) {
 
   return (
     <div className="w-full h-full relative" style={{ perspective: '1000px' }}>
-      <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 6], fov: 45 }} 
+        gl={{ toneMapping: THREE.NoToneMapping }}
+      >
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} intensity={1} />
         <pointLight position={[-5, -5, -5]} intensity={2} color="#009DFF" />
         
         <PDFMesh texture={texture} isTransitioning={isTransitioning} />
         
-        <EffectComposer>
-          <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} intensity={2.0} />
+        <EffectComposer disableNormalPass>
+          <Bloom 
+            luminanceThreshold={1.0} 
+            luminanceSmoothing={0.1} 
+            intensity={2.0} 
+            mipmapBlur 
+          />
         </EffectComposer>
       </Canvas>
       
