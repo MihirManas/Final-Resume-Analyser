@@ -1,10 +1,17 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Lightbulb, Target, Briefcase, Zap, Star, Compass, ArrowLeft, ThumbsUp, ThumbsDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  Shield, Home, Target, FileText, Briefcase, FileCheck, Sparkles, Network,
+  ArrowLeft, Download, RefreshCw, Star, Zap, CheckCircle2, XCircle, AlertTriangle,
+  ChevronRight, ExternalLink, Bot
+} from 'lucide-react';
 
 export default function Dashboard({ result, onReset }) {
   const [usedAI, setUsedAI] = useState(false);
-  const [submittedResult, setSubmittedResult] = useState(result.real_result ? true : false);
+  const [submittedResult, setSubmittedResult] = useState(false);
+
+  // If no result is passed (e.g. initial state), return null or loading
+  if (!result) return null;
 
   const handleResultSubmit = async (gotShortlisted) => {
     setSubmittedResult(true);
@@ -19,302 +26,372 @@ export default function Dashboard({ result, onReset }) {
       console.error("Failed to update result:", e);
     }
   };
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onReset();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onReset]);
-
-  if (!result) return null;
 
   const scoreColor = (score) => {
-    if (score >= 85) return 'text-green-400';
-    if (score >= 70) return 'text-[#009DFF]';
-    if (score >= 50) return 'text-orange-400';
-    return 'text-red-400';
+    if (score >= 80) return 'text-[#22C55E]';
+    if (score >= 70) return 'text-[#3B82F6]';
+    if (score >= 50) return 'text-[#F97316]';
+    return 'text-[#EF4444]';
   };
 
   const getScoreBg = (score) => {
-    if (score >= 85) return 'bg-green-400';
-    if (score >= 70) return 'bg-[#009DFF]';
-    if (score >= 50) return 'bg-orange-400';
-    return 'bg-red-400';
+    if (score >= 80) return '#22C55E';
+    if (score >= 70) return '#3B82F6';
+    if (score >= 50) return '#F97316';
+    return '#EF4444';
   };
 
-  const ScoreRing = ({ label, score, icon: Icon, isMain = false, delay = '' }) => (
-    <div className={`flex flex-col items-center justify-center p-6 bg-white/30 dark:bg-[#0A0A0A]/40 backdrop-blur-3xl border border-white/60 dark:border-[#009DFF]/20 rounded-3xl animate-in fade-in zoom-in duration-700 fill-mode-both hover:-translate-y-2 hover:shadow-[0_8px_30px_rgba(0,157,255,0.2)] transition-all ${delay} ${isMain ? 'col-span-2 md:col-span-1 shadow-[0_0_30px_rgba(0,157,255,0.15)] ring-1 ring-[#009DFF]/30' : 'shadow-inner'}`}>
-      <div className="flex items-center gap-2 mb-4 text-gray-500 dark:text-gray-400 uppercase tracking-widest text-xs font-bold">
-        {Icon && <Icon size={14} className={scoreColor(score)} />}
-        {label}
+  const getScoreLabel = (score) => {
+    if (score >= 80) return 'Great';
+    if (score >= 70) return 'Good';
+    if (score >= 50) return 'Average';
+    return 'Poor';
+  };
+
+  const CircularProgress = ({ score, size = 120, strokeWidth = 8, label }) => {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (score / 100) * circumference;
+    const color = getScoreBg(score);
+
+    return (
+      <div className="flex flex-col items-center justify-center gap-4">
+        <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+          {/* Background circle */}
+          <svg width={size} height={size} className="transform -rotate-90 drop-shadow-[0_0_10px_rgba(59,130,246,0.15)]">
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#1A2642"
+              strokeWidth={strokeWidth}
+              fill="none"
+            />
+            {/* Foreground circle */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={color}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+              className="transition-all duration-1000 ease-out drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+            />
+          </svg>
+          <div className="absolute flex flex-col items-center justify-center">
+            <span className="text-3xl font-bold text-white">{score}%</span>
+          </div>
+        </div>
+        {label && <span className={`text-sm font-bold ${scoreColor(score)}`}>{label}</span>}
       </div>
-      <div className="relative w-24 h-24 flex items-center justify-center group-hover:scale-105 transition-transform">
-        <svg className="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-sm">
-          <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="6" fill="none" className="text-gray-200 dark:text-gray-800" />
-          <circle 
-            cx="48" cy="48" r="40" 
-            stroke="currentColor" strokeWidth="6" fill="none" 
-            strokeDasharray="251.2" 
-            strokeDashoffset={251.2 - (251.2 * score) / 100}
-            strokeLinecap="round"
-            className={`${scoreColor(score)} transition-all duration-1500 ease-out`} 
-          />
-        </svg>
-        <div className={`text-3xl font-black ${scoreColor(score)}`}>{score}</div>
+    );
+  };
+
+  const ScoreCard = ({ title, icon: Icon, score, isEmployability }) => (
+    <div className={`flex flex-col items-center justify-center p-6 bg-[#0B1221] border ${isEmployability ? 'border-[#3B82F6]/50 shadow-[0_0_20px_rgba(59,130,246,0.15)]' : 'border-[#1A2642] hover:border-[#2A3F6C]'} rounded-2xl transition-all`}>
+      <div className="flex items-center gap-2 mb-6 text-gray-400 uppercase tracking-widest text-[10px] font-bold">
+        {Icon && <Icon size={14} className={isEmployability ? 'text-[#3B82F6]' : 'text-gray-500'} />}
+        {title}
       </div>
+      <CircularProgress score={score} size={100} strokeWidth={6} label={getScoreLabel(score)} />
     </div>
   );
 
   return (
-    <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+    <div className="flex h-screen w-full bg-[#02050A] text-white overflow-hidden font-sans absolute inset-0 z-50">
       
-      {/* Header */}
-      <div className="flex flex-col mb-10 gap-6">
-        <button 
-          onClick={onReset}
-          className="self-start flex items-center gap-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-        >
-          <ArrowLeft size={20} /> Back
-        </button>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-gray-900 dark:text-white mb-2">Analysis Complete</h1>
-            <p className="text-gray-600 dark:text-gray-400">Deep AI insights into your career trajectory.</p>
+      {/* LEFT SIDEBAR */}
+      <div className="w-64 flex flex-col bg-[#02050A] border-r border-[#111A2C] flex-shrink-0 z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-6 py-8">
+          <div className="w-8 h-8 bg-[#3B82F6] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+             <Shield size={18} className="text-white fill-white" />
           </div>
-          <button 
-            onClick={onReset}
-            className="flex items-center gap-2 px-6 py-3 bg-[#009DFF]/10 hover:bg-[#009DFF]/20 text-[#009DFF] border border-[#009DFF]/30 backdrop-blur-md rounded-full font-bold transition-all shadow-[0_0_15px_rgba(0,157,255,0.2)]"
-          >
-            <RefreshCw size={18} /> Analyze Another
-          </button>
+          <span className="font-bold text-lg tracking-wide">My Job <span className="text-[#3B82F6]">Secret</span></span>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto hide-scrollbar">
+          <div className="flex items-center gap-3 px-4 py-3 bg-[#0B1A38] text-[#3B82F6] rounded-xl font-medium cursor-pointer shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-[#1A2C56]">
+            <Home size={18} /> Overview
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#0B1221] rounded-xl font-medium cursor-pointer transition-colors">
+            <Target size={18} /> ATS Score
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#0B1221] rounded-xl font-medium cursor-pointer transition-colors">
+            <Zap size={18} /> Skills Analysis
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#0B1221] rounded-xl font-medium cursor-pointer transition-colors">
+            <Briefcase size={18} /> Job Match
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#0B1221] rounded-xl font-medium cursor-pointer transition-colors">
+            <FileCheck size={18} /> Resume Review
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#0B1221] rounded-xl font-medium cursor-pointer transition-colors">
+            <Sparkles size={18} /> Recommendations
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#0B1221] rounded-xl font-medium cursor-pointer transition-colors">
+            <Network size={18} /> AI Suggestions
+          </div>
+        </nav>
+
+        {/* Overall Score Widget */}
+        <div className="p-6 m-4 bg-[#070D18] border border-[#111A2C] rounded-2xl flex flex-col items-center relative overflow-hidden">
+          <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-[#3B82F6] to-transparent opacity-50"></div>
+          <span className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">Overall Score</span>
+          <CircularProgress score={result.employability_score || 82} size={110} strokeWidth={8} />
+          <p className="mt-4 text-[#22C55E] font-bold text-sm text-center">Great Score! 🎉</p>
+          <p className="mt-2 text-gray-400 text-xs text-center leading-relaxed">
+            Your resume is strong. A few targeted improvements can make it exceptional.
+          </p>
         </div>
       </div>
 
-      {/* Probability Banner */}
-      <div className="mb-8 p-6 bg-[#009DFF]/10 dark:bg-[#009DFF]/5 backdrop-blur-3xl border border-[#009DFF]/30 rounded-3xl relative overflow-hidden animate-in fade-in zoom-in duration-700">
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#009DFF] shadow-[0_0_10px_#009DFF]"></div>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
-          <div>
-            <h3 className="flex items-center gap-2 text-2xl font-black text-gray-900 dark:text-white mb-1">
-              <Target className="text-[#009DFF]" size={28} /> Chance of Interview Call
-            </h3>
-            <p className="text-gray-700 dark:text-gray-300">Based on competitive benchmarking against the target role.</p>
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 overflow-y-auto scroll-smooth hide-scrollbar bg-[#02050A]">
+        <div className="max-w-6xl mx-auto p-8 lg:p-10 space-y-6">
+          
+          {/* Top Navbar */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+            <button 
+              onClick={onReset}
+              className="flex items-center gap-2 text-[#3B82F6] hover:text-white text-sm font-medium transition-colors"
+            >
+              <ArrowLeft size={16} /> Back <span className="text-gray-500">to Dashboard</span>
+            </button>
+            <div className="flex items-center gap-4">
+              <button className="flex items-center gap-2 px-5 py-2.5 bg-transparent hover:bg-white/5 border border-[#1A2642] rounded-full text-white text-sm font-medium transition-colors">
+                <Download size={16} className="text-[#3B82F6]" /> Download Report
+              </button>
+              <button 
+                onClick={onReset}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#4F46E5] hover:bg-[#4338ca] border border-[#4F46E5]/50 rounded-full text-white text-sm font-bold transition-all shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+              >
+                <RefreshCw size={16} /> Analyze Another
+              </button>
+            </div>
           </div>
-          <div className="text-5xl font-black text-[#009DFF] drop-shadow-[0_0_15px_rgba(0,157,255,0.3)]">
-            {result.shortlist_probability}
-          </div>
-        </div>
-        {result.jd_date_analysis && result.jd_date_analysis !== "Not Applicable" && (
-          <div className="mt-4 pt-4 border-t border-[#009DFF]/20 flex items-start gap-3">
-            <Lightbulb className="text-[#009DFF] mt-0.5" size={18} />
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-300">
-              <strong className="text-[#009DFF]">Timeline Insight: </strong>
-              {result.jd_date_analysis}
+
+          {/* Header Section */}
+          <div className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-2">
+              Analysis <span className="text-[#3B82F6] font-black drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">Complete</span>
+            </h1>
+            <p className="text-gray-400 flex items-center gap-2 text-sm">
+              Deep AI insights into your career trajectory. <Sparkles size={14} className="text-[#3B82F6]" />
             </p>
           </div>
-        )}
-      </div>
 
-      {/* JD vs Resume Comparison Table */}
-      {result.jd_resume_comparison && result.jd_resume_comparison.length > 0 && (
-        <div className="mb-8 relative overflow-hidden rounded-[2rem] p-[1px] group animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#009DFF]/50 via-transparent to-transparent opacity-30"></div>
-          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-[#009DFF]/30 blur-3xl rounded-full mix-blend-screen group-hover:bg-[#009DFF]/40 transition-all duration-700"></div>
-          
-          <div className="relative bg-[#F5F5F0]/90 dark:bg-[#0A0A0A]/90 backdrop-blur-3xl rounded-[2rem] border border-white/40 dark:border-[#009DFF]/30 p-8 shadow-[0_0_30px_rgba(0,157,255,0.1)]">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-              <Compass className="text-[#009DFF]" /> JD vs Resume Comparison
-            </h3>
+          {/* Probability Banner */}
+          <div className="w-full bg-[#0B1221] border border-[#1A2642] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
+            {/* Glowing orb in bg */}
+            <div className="absolute right-20 top-1/2 -translate-y-1/2 w-64 h-64 bg-[#3B82F6]/10 blur-[100px] rounded-full mix-blend-screen pointer-events-none"></div>
             
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-[#009DFF]/20 text-gray-500 dark:text-gray-400 text-sm uppercase tracking-wider">
-                    <th className="pb-3 pr-4 font-bold w-1/4">Criteria</th>
-                    <th className="pb-3 px-4 font-bold w-1/3">JD Requirement</th>
-                    <th className="pb-3 px-4 font-bold w-1/3">Your Resume</th>
-                    <th className="pb-3 pl-4 font-bold text-center">Match</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200/50 dark:divide-white/5">
-                  {result.jd_resume_comparison.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-[#009DFF]/5 transition-colors">
-                      <td className="py-4 pr-4 font-semibold text-gray-900 dark:text-white align-top">
-                        {item.criteria}
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-700 dark:text-gray-300 align-top">
-                        {item.jd_requirement}
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-700 dark:text-gray-300 align-top">
-                        {item.resume_status}
-                      </td>
-                      <td className="py-4 pl-4 align-top text-center">
-                        {item.match ? (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]">
-                            <CheckCircle2 size={16} />
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-                            <XCircle size={16} />
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Primary Scores Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <ScoreRing label="Employability" score={result.employability_score} icon={Star} isMain={true} delay="delay-100" />
-        <ScoreRing label="ATS Match" score={result.ats_score} icon={Target} delay="delay-150" />
-        <ScoreRing label="Skills" score={result.skill_score} icon={Zap} delay="delay-200" />
-        <ScoreRing label="Projects" score={result.project_score} icon={Briefcase} delay="delay-300" />
-        <ScoreRing label="Interview Chance" score={result.interview_score} icon={CheckCircle2} delay="delay-500" />
-      </div>
-
-      {/* Real Result Feedback Loop */}
-      {!submittedResult && (
-        <div className="mb-8 p-6 bg-white/20 dark:bg-black/30 backdrop-blur-3xl border border-white/40 dark:border-[#009DFF]/20 rounded-3xl text-center relative overflow-hidden shadow-[0_0_20px_rgba(0,157,255,0.05)]">
-          {!usedAI ? (
-            <div className="animate-in fade-in zoom-in duration-500">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Did you use our AI suggestions to update your resume?</h3>
-              <div className="flex justify-center gap-4">
-                <button onClick={() => setUsedAI(true)} className="px-6 py-2 bg-[#009DFF]/20 hover:bg-[#009DFF]/30 text-[#009DFF] border border-[#009DFF]/30 rounded-full font-bold transition-all shadow-[0_0_15px_rgba(0,157,255,0.2)]">
-                  Yes, I did
-                </button>
-                <button onClick={() => setSubmittedResult(true)} className="px-6 py-2 bg-white/30 dark:bg-white/5 border border-white/50 dark:border-white/10 hover:bg-white/50 dark:hover:bg-white/10 text-gray-900 dark:text-white rounded-full font-bold transition-all">
-                  No, not yet
-                </button>
+            <div className="flex items-center gap-6 z-10 w-1/2">
+              <div className="w-14 h-14 rounded-full bg-[#091529] border border-[#1E3A8A] flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.3)] shrink-0">
+                 <Target size={28} className="text-[#3B82F6]" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1">Chance of Interview Call</h3>
+                <p className="text-sm text-gray-400">Based on competitive benchmarking against the target role.</p>
               </div>
             </div>
-          ) : (
-            <div className="animate-in fade-in zoom-in slide-in-from-right-8 duration-500">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Awesome! And did you get shortlisted for an interview?</h3>
-              <div className="flex justify-center gap-4">
-                <button onClick={() => handleResultSubmit(true)} className="flex items-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold transition-all shadow-[0_0_15px_rgba(34,197,94,0.3)]">
-                  <ThumbsUp size={18} /> Yes, I got shortlisted!
-                </button>
-                <button onClick={() => handleResultSubmit(false)} className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full font-bold transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]">
-                  <ThumbsDown size={18} /> No, rejected
-                </button>
+
+            <div className="flex items-center justify-between gap-12 z-10 w-1/2">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#1E3A8A] to-[#0F172A] border border-[#3B82F6]/50 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.4)] shrink-0">
+                   <span className="text-xl font-bold text-white">{result.shortlist_probability || '72%'}</span>
+                </div>
+                <div>
+                  <h4 className="text-[#3B82F6] font-bold mb-1">Good Chance</h4>
+                  <p className="text-xs text-gray-400 max-w-[150px]">You have a good chance of getting shortlisted.</p>
+                </div>
+              </div>
+              
+              {/* Dummy Chart Line */}
+              <div className="hidden lg:block flex-1 h-12 relative">
+                <svg viewBox="0 0 100 30" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                   <path 
+                     d="M 0 30 C 20 30, 30 25, 50 20 C 70 15, 80 5, 100 0" 
+                     fill="none" 
+                     stroke="url(#gradient)" 
+                     strokeWidth="1.5"
+                     className="drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]"
+                   />
+                   <circle cx="100" cy="0" r="1.5" fill="#3B82F6" className="drop-shadow-[0_0_5px_#3B82F6]" />
+                   <defs>
+                     <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.1" />
+                        <stop offset="100%" stopColor="#3B82F6" stopOpacity="1" />
+                     </linearGradient>
+                   </defs>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Scores Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <ScoreCard title="Employability" icon={Star} score={result.employability_score || 84} isEmployability={true} />
+            <ScoreCard title="ATS Match" icon={Target} score={result.ats_score || 76} />
+            <ScoreCard title="Skills" icon={Zap} score={result.skill_score || 81} />
+            <ScoreCard title="Projects" icon={Briefcase} score={result.project_score || 78} />
+            <ScoreCard title="Interview Chance" icon={Target} score={result.interview_score || 72} />
+          </div>
+
+          {/* AI Feedback Banner */}
+          {!submittedResult && (
+            <div className="w-full bg-[#070D18] border border-[#1A2642] rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute right-0 bottom-0 w-1/2 h-full opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(ellipse at bottom right, rgba(59,130,246,0.4), transparent 70%)' }}></div>
+              {/* Decorative wavy lines mock */}
+              <div className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden flex items-center justify-end px-12">
+                 <svg width="400" height="60" viewBox="0 0 400 60" fill="none">
+                    <path d="M0,30 C100,60 150,0 250,30 C350,60 400,30 400,30" stroke="#3B82F6" strokeWidth="1" strokeDasharray="4 4" />
+                    <path d="M0,40 C100,70 150,10 250,40 C350,70 400,40 400,40" stroke="#3B82F6" strokeWidth="0.5" opacity="0.5" />
+                    <path d="M0,20 C100,50 150,-10 250,20 C350,50 400,20 400,20" stroke="#3B82F6" strokeWidth="0.5" opacity="0.5" />
+                 </svg>
+              </div>
+
+              <div className="flex items-center gap-4 z-10 w-full">
+                <div className="w-12 h-12 rounded-full bg-[#0B1A38] border border-[#3B82F6]/30 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.2)] shrink-0">
+                  <Bot size={24} className="text-[#3B82F6]" />
+                </div>
+                <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between w-full">
+                  <h3 className="font-bold text-white text-sm md:text-base">Did you use our AI suggestions to update your resume?</h3>
+                  <div className="flex items-center gap-3 mt-4 md:mt-0 shrink-0">
+                    <button onClick={() => { setUsedAI(true); handleResultSubmit(true); }} className="px-8 py-2 bg-[#1E40AF] hover:bg-[#1D4ED8] rounded-full text-white text-sm font-bold transition-colors shadow-[0_0_15px_rgba(30,64,175,0.5)] border border-[#3B82F6]/50">
+                      Yes, I did
+                    </button>
+                    <button onClick={() => { setSubmittedResult(true); handleResultSubmit(false); }} className="px-8 py-2 bg-[#0B1221] hover:bg-[#111A2C] border border-[#1A2642] rounded-full text-gray-300 hover:text-white text-sm font-bold transition-colors">
+                      No, not yet
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* Alternative Pathways Banner */}
-      {result.alternative_roles_suggested?.length > 0 && (
-        <div className="mb-8 p-6 bg-white/20 dark:bg-[#009DFF]/5 backdrop-blur-3xl border border-white/40 dark:border-[#009DFF]/20 rounded-3xl relative overflow-hidden shadow-inner">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-[#009DFF]"></div>
-          <h3 className="flex items-center gap-2 text-xl font-bold text-[#009DFF] dark:text-[#009DFF] mb-3">
-            <Compass size={24} /> Consider Alternative Pathways
-          </h3>
-          <p className="text-gray-800 dark:text-gray-300 mb-4 text-sm md:text-base">Based on your deep technical skill stack, our AI strongly suggests you would also be highly competitive for:</p>
-          <div className="flex flex-wrap gap-3">
-            {result.alternative_roles_suggested.map((role, i) => (
-              <span key={i} className="px-4 py-2 bg-white/50 dark:bg-[#009DFF]/10 border border-white/80 dark:border-[#009DFF]/30 text-gray-900 dark:text-[#009DFF] rounded-full text-sm font-bold shadow-sm">
-                {role}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Detailed Insights Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Strengths */}
-        <div className="p-8 bg-white/30 dark:bg-[#0A0A0A]/40 backdrop-blur-3xl border border-white/60 dark:border-green-500/20 rounded-3xl shadow-inner hover:shadow-[0_0_20px_rgba(34,197,94,0.1)] hover:border-green-500/40 transition-all animate-in fade-in slide-in-from-left-8 duration-700 delay-500 fill-mode-both">
-          <h3 className="flex items-center gap-2 text-xl font-bold text-green-600 dark:text-green-400 mb-6">
-            <CheckCircle2 /> Key Strengths
-          </h3>
-          <ul className="space-y-4">
-            {result.strengths?.map((item, i) => (
-              <li key={i} className="flex items-start gap-3 text-gray-800 dark:text-gray-300">
-                <span className="mt-1 w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                <span className="leading-relaxed text-sm">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Weaknesses */}
-        <div className="p-8 bg-white/30 dark:bg-[#0A0A0A]/40 backdrop-blur-3xl border border-white/60 dark:border-red-500/20 rounded-3xl shadow-inner hover:shadow-[0_0_20px_rgba(239,68,68,0.1)] hover:border-red-500/40 transition-all animate-in fade-in slide-in-from-right-8 duration-700 delay-500 fill-mode-both">
-          <h3 className="flex items-center gap-2 text-xl font-bold text-red-600 dark:text-red-400 mb-6">
-            <XCircle /> Critical Weaknesses
-          </h3>
-          <ul className="space-y-4">
-            {[...(result.weaknesses || []), ...(result.missing_skills || [])].slice(0, 7).map((item, i) => (
-              <li key={i} className="flex items-start gap-3 text-gray-800 dark:text-gray-300">
-                <span className="mt-1 w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-                <span className="leading-relaxed text-sm">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Skill Acquisition Guide */}
-        {result.skill_acquisition_guide?.length > 0 && (
-          <div className="p-8 bg-white/30 dark:bg-[#0A0A0A]/40 backdrop-blur-3xl border border-white/60 dark:border-[#009DFF]/20 rounded-3xl md:col-span-2 shadow-inner hover:shadow-[0_0_20px_rgba(0,157,255,0.1)] transition-all animate-in fade-in slide-in-from-bottom-8 duration-700 delay-700 fill-mode-both">
-            <h3 className="flex items-center gap-2 text-xl font-bold text-[#009DFF] mb-6">
-              <Lightbulb /> Actionable Skill Guide
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {result.skill_acquisition_guide.map((item, i) => (
-                <div key={i} className="p-5 bg-white/50 dark:bg-[#009DFF]/5 border border-white/80 dark:border-[#009DFF]/10 rounded-2xl">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-1 w-2 h-2 rounded-full bg-[#009DFF] flex-shrink-0 shadow-[0_0_8px_#009DFF]" />
-                    <span className="text-gray-800 dark:text-gray-300 text-sm leading-relaxed">{item}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Improvement Plan */}
-        <div className="p-8 bg-white/30 dark:bg-[#0A0A0A]/40 backdrop-blur-3xl border border-white/60 dark:border-orange-500/20 rounded-3xl md:col-span-2 shadow-inner hover:shadow-[0_0_20px_rgba(249,115,22,0.1)] transition-all animate-in fade-in slide-in-from-bottom-8 duration-700 delay-1000 fill-mode-both">
-          <h3 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white mb-6">
-            <AlertTriangle className="text-orange-500 dark:text-orange-400" /> Strategic Improvement Plan
-          </h3>
-          <div className="space-y-4">
-            {result.improvement_plan?.map((item, i) => (
-              <div key={i} className="flex items-center gap-4 p-4 bg-white/50 dark:bg-white/5 rounded-2xl border border-white/80 dark:border-transparent">
-                <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-400/20 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold flex-shrink-0">
-                  {i + 1}
-                </div>
-                <p className="text-gray-800 dark:text-gray-300 text-sm">{item}</p>
+          {/* Detailed Split Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            
+            {/* Strengths & Weaknesses (Col 1 & 2) */}
+            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Strengths */}
+              <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 relative overflow-hidden group hover:border-[#22C55E]/30 transition-colors">
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#22C55E]/50 group-hover:bg-[#22C55E] transition-colors"></div>
+                <h3 className="flex items-center gap-2 text-lg font-bold text-[#22C55E] mb-6">
+                  <CheckCircle2 size={20} /> Key Strengths
+                </h3>
+                <ul className="space-y-4">
+                  {(result.strengths && result.strengths.length > 0 ? result.strengths : [
+                    "Strong technical skills match",
+                    "Good project diversity",
+                    "Relevant work experience",
+                    "Well-structured resume"
+                  ]).map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#22C55E] mt-2 shadow-[0_0_5px_#22C55E] shrink-0"></div>
+                      <span className="text-gray-300 text-sm leading-relaxed">{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ))}
+
+              {/* Weaknesses */}
+              <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 relative overflow-hidden group hover:border-[#EF4444]/30 transition-colors">
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#EF4444]/50 group-hover:bg-[#EF4444] transition-colors"></div>
+                <h3 className="flex items-center gap-2 text-lg font-bold text-[#EF4444] mb-6">
+                  <XCircle size={20} /> Critical Weaknesses
+                </h3>
+                <ul className="space-y-4">
+                  {([...(result.weaknesses || []), ...(result.missing_skills || [])].length > 0 ? [...(result.weaknesses || []), ...(result.missing_skills || [])] : [
+                    "Missing few important keywords",
+                    "Limited quantifiable achievements",
+                    "Skills section needs improvement",
+                    "Education section not optimized"
+                  ]).slice(0,4).map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] mt-2 shadow-[0_0_5px_#EF4444] shrink-0"></div>
+                      <span className="text-gray-300 text-sm leading-relaxed">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Improvement Plan (Col 3) */}
+            <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 lg:col-span-1">
+              <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-6">
+                <AlertTriangle size={20} className="text-[#F97316]" /> Strategic Improvement Plan
+              </h3>
+              <div className="space-y-6">
+                {(result.improvement_plan && result.improvement_plan.length > 0 ? result.improvement_plan : [
+                  "Optimize your resume for ATS",
+                  "Highlight measurable achievements",
+                  "Strengthen your skills section"
+                ]).map((item, i) => {
+                   let title = item;
+                   let desc = "Follow this recommendation closely.";
+                   // If the item has a colon, split it into title and desc for nicer UI
+                   if (item.includes(':')) {
+                      const parts = item.split(':');
+                      title = parts[0].trim();
+                      desc = parts.slice(1).join(':').trim();
+                   }
+
+                   return (
+                  <div key={i} className="flex items-start gap-4 group cursor-pointer">
+                    <div className="w-6 h-6 rounded-full bg-[#F97316] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-[0_0_10px_rgba(249,115,22,0.4)] mt-1">
+                      {i + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-white text-sm font-bold mb-1 group-hover:text-[#3B82F6] transition-colors">{title}</h4>
+                      <p className="text-gray-400 text-xs">{desc}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-gray-600 group-hover:text-white transition-colors mt-1" />
+                  </div>
+                )})}
+              </div>
+            </div>
+
           </div>
+
+          {/* Sponsored Ad Banner */}
+          <div className="w-full bg-[#070D18] border border-[#1A2642] rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden group cursor-pointer hover:border-[#1E3A8A] transition-colors mt-4 mb-10">
+             {/* Glowing Grid Background */}
+             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#3B82F6 1px, transparent 1px), linear-gradient(90deg, #3B82F6 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+             <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-[#3B82F6]/10 to-transparent pointer-events-none mix-blend-screen"></div>
+
+             <div className="flex items-center gap-4 z-10">
+                <div className="w-12 h-12 rounded-xl bg-[#091529] border border-[#1E3A8A] flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)] shrink-0">
+                   <Briefcase size={24} className="text-[#3B82F6]" />
+                </div>
+                <div>
+                   <div className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1">Sponsored</div>
+                   <h4 className="text-sm font-bold text-white mb-0.5 group-hover:text-[#3B82F6] transition-colors">Level up your data career with DataCamp</h4>
+                   <p className="text-xs text-gray-400">Join 12 million learners and master Python, SQL, and Machine Learning.</p>
+                </div>
+             </div>
+             
+             <button className="z-10 flex items-center gap-2 px-5 py-2 bg-transparent border border-[#1A2642] rounded-full text-[#3B82F6] text-xs font-bold hover:bg-[#1E3A8A]/30 hover:border-[#3B82F6]/50 transition-all shrink-0">
+                Explore DataCamp <ExternalLink size={14} />
+             </button>
+          </div>
+
         </div>
-
       </div>
-
-      {/* Non-intrusive Ad Space Example (e.g., Carbon Ads or Native Sponsorship) */}
-      <div className="mt-12 flex justify-center animate-in fade-in duration-1000 delay-1000">
-        <div className="max-w-md w-full p-4 bg-gray-50/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl flex items-center gap-4 text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer group">
-          <div className="w-16 h-16 bg-blue-500/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-            <Briefcase className="text-blue-500" size={24} />
-          </div>
-          <div>
-            <div className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider mb-1">Sponsored</div>
-            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-0.5 group-hover:text-blue-500 transition-colors">Level up your data career with DataCamp</h4>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Join 12 million learners and master Python, SQL, and Machine Learning today.</p>
-          </div>
-        </div>
-      </div>
-
+      
+      {/* Global override for scrollbar to make it invisible or sleek (handled in global CSS usually, but adding a class just in case) */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .hide-scrollbar::-webkit-scrollbar {
+          width: 0px;
+          background: transparent;
+        }
+      `}} />
     </div>
   );
 }
-

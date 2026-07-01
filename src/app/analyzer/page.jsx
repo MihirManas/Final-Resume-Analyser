@@ -14,6 +14,7 @@ export default function AnalyzerPage() {
   const [targetRole, setTargetRole] = useState('');
   const [jdMode, setJdMode] = useState('paste'); // paste | upload
   const [jdText, setJdText] = useState('');
+  const [jdFile, setJdFile] = useState(null);
   const [selectedChallenges, setSelectedChallenges] = useState([]);
   const [otherChallenge, setOtherChallenge] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +54,11 @@ export default function AnalyzerPage() {
     if (file) setResumeFile(file);
   };
 
+  const handleJdFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) setJdFile(file);
+  };
+
   const toggleChallenge = (c) => {
     if (selectedChallenges.includes(c)) {
       setSelectedChallenges(selectedChallenges.filter(x => x !== c));
@@ -61,12 +67,55 @@ export default function AnalyzerPage() {
     }
   };
 
-  const handleStartAnalysis = () => {
+  const handleStartAnalysis = async () => {
+    if (!resumeFile || !targetRole) {
+      alert("Please upload a resume and specify a target role.");
+      return;
+    }
+    
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      
+      const formData = new FormData();
+      formData.append('resume_file', resumeFile);
+      formData.append('target_role', targetRole);
+      
+      if (jdMode === 'upload' && typeof jdFile !== 'undefined' && jdFile) {
+        formData.append('jd_file', jdFile);
+      } else if (jdMode === 'paste' && jdText.trim()) {
+        formData.append('jd_text', jdText.trim());
+      }
+
+      const problems = selectedChallenges.filter(c => c !== 'Other (please specify)');
+      if (selectedChallenges.includes('Other (please specify)') && otherChallenge.trim()) {
+        problems.push(otherChallenge.trim());
+      }
+      if (problems.length > 0) {
+        formData.append('user_problems', problems.join(', '));
+      }
+
+      const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const uploadData = await uploadRes.json();
+      
+      const reportRes = await fetch(`${API_BASE_URL}/api/report/${uploadData.analysis_id}`);
+      if (!reportRes.ok) throw new Error('Failed to fetch report');
+      
+      const reportData = await reportRes.json();
+      setAnalysisResult({ ...reportData, analysis_id: uploadData.analysis_id });
+
+    } catch (error) {
+      console.error(error);
+      alert("Analysis failed. Please check the backend connection.");
+    } finally {
       setIsLoading(false);
-      setAnalysisResult({ complete: true, real_result: null, analysis_id: 'dummy' });
-    }, 31000); // 31 seconds for 9 stages
+    }
   };
 
   if (analysisResult) {
@@ -237,10 +286,11 @@ export default function AnalyzerPage() {
                       <span className="absolute bottom-4 right-4 text-xs text-white/20">0 / 5000</span>
                     </div>
                   ) : (
-                    <div className="w-full h-64 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 flex items-center justify-center cursor-pointer hover:border-[#009DFF]/50 transition-colors">
+                    <div className="relative w-full h-64 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:border-[#009DFF]/50 transition-colors">
+                      <input type="file" accept=".pdf,.docx,.txt" onChange={handleJdFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                       <div className="text-center text-white/40 text-sm">
                         <Upload size={24} className="mx-auto mb-2" />
-                        Click to upload Job Description PDF
+                        {jdFile ? <p className="font-semibold text-white">{jdFile.name}</p> : 'Click to upload Job Description PDF'}
                       </div>
                     </div>
                   )}
