@@ -229,7 +229,8 @@ const PDFMesh = ({ texture, isTransitioning }) => {
   
   return (
     // Position it on the right side of the screen (about 25% from center)
-    <group ref={groupRef} position={[viewport.width * 0.2, 0, 0]}>
+    // Scale reduced by 10% to prevent it from overpowering the screen
+    <group ref={groupRef} position={[viewport.width * 0.2, 0, 0]} scale={0.9}>
       
       {/* Solid Plane - Darken the base color slightly for realism */}
       <mesh ref={solidPlaneRef}>

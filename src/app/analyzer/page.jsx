@@ -256,26 +256,28 @@ export default function App() {
       <div className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#009DFF]/10 via-[#020408] to-[#020408]" />
       <style dangerouslySetInnerHTML={{ __html: styles }} />
 
-      {/* Top Navigation Steps Bar (Only visible on Steps 2-4) */}
+      {/* Left Navigation Steps Bar (Only visible on Steps 2-4) */}
       {bootComplete && !isLoading && !analysisResult && currentStep > 1 && (
-        <div className="w-full max-w-4xl mx-auto pt-28 px-6 relative z-20 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="flex items-center justify-between relative">
-            <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-white/5 -translate-y-1/2 z-0" />
+        <div className="fixed left-8 top-1/2 -translate-y-1/2 h-[400px] z-50 animate-in fade-in slide-in-from-left-4 duration-700">
+          <div className="flex flex-col items-center justify-between h-full relative">
+            <div className="absolute top-0 bottom-0 left-1/2 w-[2px] bg-white/5 -translate-x-1/2 z-0" />
             
-            {[1, 2, 3, 4].map(stepNum => (
-              <div key={stepNum} className="relative z-10 flex flex-col items-center gap-2 cursor-pointer" onClick={() => currentStep > stepNum && setCurrentStep(stepNum)}>
+            {[4, 3, 2, 1].map(stepNum => (
+              <div key={stepNum} className="relative z-10 flex items-center gap-4 cursor-pointer group" onClick={() => currentStep > stepNum && setCurrentStep(stepNum)}>
+                {/* Label on the right side of the dot, only visible on hover to keep it clean */}
+                <div className={`absolute left-10 w-max text-[10px] uppercase tracking-widest font-semibold transition-all duration-300 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 ${currentStep >= stepNum ? 'text-[#009DFF]' : 'text-white/40'}`}>
+                  {stepNum === 1 ? 'Upload Resume' : stepNum === 2 ? 'Target Role' : stepNum === 3 ? 'Job Description' : 'Challenges'}
+                </div>
+                
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${currentStep >= stepNum ? 'bg-[#009DFF] text-white shadow-[0_0_15px_rgba(0,157,255,0.5)]' : 'bg-[#0a0f1a] text-white/40 border border-white/10'}`}>
                   {stepNum}
                 </div>
-                <span className={`text-[10px] uppercase tracking-widest font-semibold transition-colors duration-500 ${currentStep >= stepNum ? 'text-[#009DFF]' : 'text-white/40'}`}>
-                  {stepNum === 1 ? 'Upload Resume' : stepNum === 2 ? 'Target Role' : stepNum === 3 ? 'Job Description' : 'Challenges'}
-                </span>
               </div>
             ))}
             
-            {/* Active Progress Line */}
-            <div className="absolute top-1/2 left-0 h-[2px] bg-[#009DFF] -translate-y-1/2 z-0 transition-all duration-700 ease-in-out shadow-[0_0_10px_rgba(0,157,255,0.5)]" 
-                 style={{ width: `${((currentStep - 1) / 3) * 100}%` }} />
+            {/* Active Progress Line (Fills from Bottom to Top) */}
+            <div className="absolute bottom-0 left-1/2 w-[2px] bg-[#009DFF] -translate-x-1/2 z-0 transition-all duration-700 ease-in-out shadow-[0_0_10px_rgba(0,157,255,0.5)]" 
+                 style={{ height: `${((currentStep - 1) / 3) * 100}%` }} />
           </div>
         </div>
       )}
@@ -469,17 +471,6 @@ export default function App() {
                 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 120 }}
               >
-                {/* Glowing Platform (Always visible during transition) */}
-                <div className="relative flex items-center justify-center mt-12" ref={platformRef}>
-                  {/* Energy Beam (Hidden by default, triggered by GSAP) */}
-                  <div ref={beamRef} className="absolute bottom-0 w-32 h-[400px] bg-gradient-to-t from-[#009DFF]/80 via-[#009DFF]/20 to-transparent blur-md opacity-0 origin-bottom z-10" />
-                  
-                  {/* Rings */}
-                  <div className={`absolute w-[400px] h-[100px] rounded-[100%] border border-[#009DFF]/20 platform-ring ${isHoveringUpload ? 'opacity-100' : 'opacity-40'} transition-opacity duration-500`} style={{ transform: 'rotateX(75deg)' }} />
-                  <div className={`absolute w-[300px] h-[75px] rounded-[100%] border border-[#009DFF]/40 platform-ring ${isHoveringUpload ? 'border-[#009DFF]/80 shadow-[0_0_20px_#009DFF] animate-spin-slow' : ''} transition-all duration-500`} style={{ transform: 'rotateX(75deg)' }} />
-                  <div className="absolute w-[200px] h-[50px] rounded-[100%] bg-[#009DFF]/10 shadow-[0_0_50px_#009DFF] blur-md platform-ring" style={{ transform: 'rotateX(75deg)' }} />
-                  <div className={`absolute w-[100px] h-[25px] rounded-[100%] bg-[#009DFF] blur-xl platform-ring ${isDraggingOver ? 'scale-150 opacity-100' : 'opacity-60'} transition-all duration-300`} style={{ transform: 'rotateX(75deg)' }} />
-                </div>
               </motion.div>
 
               {/* Full-Screen Holographic Canvas */}
