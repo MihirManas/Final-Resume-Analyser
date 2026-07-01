@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -27,7 +27,7 @@ const C_BLUE = new THREE.Color(0.0, 0.4, 1.0).multiplyScalar(4.0);
 const C_PURPLE = new THREE.Color(0.5, 0.0, 1.0).multiplyScalar(3.0);
 const C_GREEN = new THREE.Color(0.0, 1.0, 0.3).multiplyScalar(3.0);
 const C_ORANGE = new THREE.Color(1.0, 0.3, 0.0).multiplyScalar(4.0);
-const C_WHITE = new THREE.Color(1.0, 1.0, 1.0).multiplyScalar(2.0);
+
 
 // ===================== HIGH FIDELITY PARTICLE STREAMS =====================
 const StreamShader = {
