@@ -35,6 +35,7 @@ const StreamShader = {
     
     varying vec3 vColor;
     varying float vAlpha;
+    varying float vLight;
     
     void main() {
       // Simple neon colors
@@ -89,11 +90,16 @@ const StreamShader = {
       vAlpha = smoothstep(0.0, 0.1, progress) * smoothstep(1.0, 0.8, progress);
       vAlpha *= (1.0 - smoothstep(6.0, 7.0, uStage)); // Fade out when resume builds
       
-      // Spin the cubes
-      float angle = uTime * 2.0 + aOffset * 10.0;
+      // Gentle tumble instead of chaotic spin
+      float angle = uTime * 0.5 + aOffset * 5.0;
       float s = sin(angle); float c = cos(angle);
       mat3 rotY = mat3(c, 0, s, 0, 1, 0, -s, 0, c);
       mat3 rotX = mat3(1, 0, 0, 0, c, -s, 0, s, c);
+      
+      // Calculate normal for basic lighting so they look like 3D cubes!
+      vec3 rotatedNormal = rotX * rotY * normal;
+      vec3 lightDir = normalize(vec3(0.5, 1.0, 0.8));
+      vLight = max(0.4, dot(rotatedNormal, lightDir)); // 0.4 ambient + directional
       
       vec3 finalPos = pos + rotX * rotY * position * aSize;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(finalPos, 1.0);
@@ -102,10 +108,11 @@ const StreamShader = {
   fragmentShader: `
     varying vec3 vColor;
     varying float vAlpha;
+    varying float vLight;
     void main() {
       if (vAlpha < 0.01) discard;
-      // Solid glowing cubes with bright edges (pseudo-wireframe look)
-      gl_FragColor = vec4(vColor, vAlpha * 0.8);
+      // Multiply color by light to get shaded 3D cubes
+      gl_FragColor = vec4(vColor * vLight, vAlpha * 0.85);
     }
   `
 };
