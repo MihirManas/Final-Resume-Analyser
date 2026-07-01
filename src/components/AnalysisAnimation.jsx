@@ -1,15 +1,13 @@
 "use client";
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import * as pdfjsLib from 'pdfjs-dist';
-import { ArrowLeft } from 'lucide-react';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 // ===================== STAGE DEFINITIONS =====================
-
 const STAGES = [
   { title: 'INITIALIZING ANALYSIS', subtitle: 'Preparing your resume for deep analysis...' },
   { title: 'SCANNING DOCUMENT', subtitle: 'Reading through your resume...' },
@@ -21,309 +19,402 @@ const STAGES = [
   { title: 'FINALIZING ANALYSIS', subtitle: 'Almost done...' },
   { title: 'ANALYSIS COMPLETE', subtitle: 'Redirecting to your results...' },
 ];
+const STAGE_DURATIONS = [3, 3, 3, 3.5, 4, 3.5, 4, 3.5, 3];
+const MAX_AUTO_STAGE = 7;
 
-const STAGE_DURATIONS = [3, 3.5, 3, 3.5, 4, 3.5, 4, 3.5, 3];
-const MAX_AUTO_STAGE = 7; // Hold at stage 7 (Finalizing) until backend responds
+// Exact colors from the image
+const C_BLUE = new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(3.0);
+const C_PURPLE = new THREE.Color(0.6, 0.0, 1.0).multiplyScalar(2.5);
+const C_GREEN = new THREE.Color(0.0, 1.0, 0.4).multiplyScalar(2.5);
+const C_ORANGE = new THREE.Color(1.0, 0.4, 0.0).multiplyScalar(3.0);
 
-const SECTION_LABELS = [
-  { text: 'EXPERIENCE', x: '12%', y: '28%' },
-  { text: 'SKILLS', x: '38%', y: '20%' },
-  { text: 'PROJECTS', x: '62%', y: '28%' },
-  { text: 'EDUCATION', x: '80%', y: '45%' },
-];
-
-// ===================== PARTICLE GRID =====================
-
-const COLS = 80;
-const ROWS = 113;
-const COUNT = COLS * ROWS;
-const DOC_W = 3;
-const DOC_H = DOC_W * (ROWS / COLS);
-const CUBE_W = DOC_W / COLS;
-const CUBE_H = DOC_H / ROWS;
-
-// ===================== GLSL SHADERS =====================
-
-const vertexShader = `
-  uniform float uTime;
-  uniform float uAssembly;
-  uniform float uWaveIntensity;
-  
-  attribute vec2 instanceUv;
-  attribute vec3 aRandom;
-  
-  varying vec2 vUv;
-  varying float vAssembly;
-  varying vec3 vRandom;
-  
-  void main() {
-    vUv = instanceUv;
-    vAssembly = uAssembly;
-    vRandom = aRandom;
+// ===================== PARTICLE STREAMS =====================
+const StreamShader = {
+  uniforms: {
+    uTime: { value: 0 },
+    uStage: { value: 0 },
+  },
+  vertexShader: `
+    uniform float uTime;
+    uniform float uStage;
     
-    vec3 pos = position;
+    attribute float aCurveIndex; // 0=Blue, 1=Purple, 2=Green, 3=Orange
+    attribute float aOffset;
+    attribute float aSize;
     
-    // Scale cubes larger when scattered for visual impact, shrink when assembling
-    float scaleBoost = mix(2.2, 1.0, smoothstep(0.2, 0.75, uAssembly));
-    pos *= scaleBoost;
+    varying vec3 vColor;
+    varying float vAlpha;
     
-    // Home position from instance matrix (document grid slot)
-    vec4 worldPos = instanceMatrix * vec4(pos, 1.0);
-    
-    // Calculate how scattered the particles are
-    float scatterAmount = 1.0 - smoothstep(0.0, 0.85, uAssembly);
-    
-    if (scatterAmount > 0.001) {
-      // Base random scatter position
-      vec3 scatter = aRandom * vec3(30.0, 18.0, 10.0);
+    void main() {
+      // 1. Determine Color based on curve index and stage
+      vec3 colBlue = vec3(0.0, 0.5, 1.0) * 3.0;
+      vec3 colPurple = vec3(0.6, 0.0, 1.0) * 2.5;
+      vec3 colGreen = vec3(0.0, 1.0, 0.4) * 2.5;
+      vec3 colOrange = vec3(1.0, 0.4, 0.0) * 3.0;
       
-      // Flowing horizontal wave (scanning effect)
-      float waveX = sin(uTime * 0.5 + aRandom.x * 10.0 + worldPos.y * 0.3) * 6.0;
-      float waveY = cos(uTime * 0.35 + aRandom.y * 8.0) * 3.5;
-      float waveZ = sin(uTime * 0.4 + aRandom.z * 6.28) * 2.5;
+      vec3 color = colBlue; // Default all blue for early stages
       
-      scatter.x += waveX * uWaveIntensity;
-      scatter.y += waveY * uWaveIntensity;
-      scatter.z += waveZ * uWaveIntensity;
+      // Stage 3 (index 2) starts splitting colors, Stage 4 (index 3) fully split
+      float splitPhase = smoothstep(2.0, 3.0, uStage);
+      if (aCurveIndex > 0.5 && aCurveIndex < 1.5) color = mix(colBlue, colPurple, splitPhase);
+      if (aCurveIndex > 1.5 && aCurveIndex < 2.5) color = mix(colBlue, colGreen, splitPhase);
+      if (aCurveIndex > 2.5) color = mix(colBlue, colOrange, splitPhase);
+      vColor = color;
       
-      // Global horizontal drift — creates the "scanning wave" sweep
-      scatter.x += sin(uTime * 0.3) * 8.0 * uWaveIntensity;
+      // 2. Flow Progress
+      // Particles move from 0 to 1 over time.
+      float speed = mix(0.15, 0.3, smoothstep(2.0, 5.0, uStage));
+      float progress = fract(aOffset + uTime * speed);
       
-      worldPos.xyz += scatter * scatterAmount;
+      // 3. Base path (Sine wave moving left to right)
+      float startX = -6.0;
+      float endX = 6.0;
+      
+      // Core target position (right side over platform)
+      vec3 corePos = vec3(2.5, -0.5, 0.0);
+      
+      // Interpolate along X
+      vec3 pos = vec3(mix(startX, endX, progress), 0.0, 0.0);
+      
+      // Add Sine wave motion
+      float waveFreq = 2.0;
+      float waveAmp = 0.8;
+      pos.y = sin(progress * waveFreq * 3.14159 + uTime) * waveAmp;
+      pos.z = cos(progress * waveFreq * 3.14159 + uTime * 0.8) * waveAmp * 0.5;
+      
+      // 4. Spread and Target logic (Stage 3+)
+      if (uStage >= 2.0) {
+        float spreadAmount = mix(0.0, 1.5, smoothstep(2.0, 3.0, uStage));
+        
+        // Spread the 4 colored streams vertically
+        if (aCurveIndex == 0.0) pos.y += spreadAmount * 0.8;
+        if (aCurveIndex == 1.0) pos.y += spreadAmount * 0.3;
+        if (aCurveIndex == 2.0) pos.y -= spreadAmount * 0.3;
+        if (aCurveIndex == 3.0) pos.y -= spreadAmount * 0.8;
+        
+        // Converge into the Core (Stage 4+)
+        float convergePhase = smoothstep(3.0, 4.0, uStage);
+        if (convergePhase > 0.0) {
+           // Target is the left side of the core
+           vec3 targetPoint = corePos + vec3(-0.5, (aCurveIndex - 1.5) * 0.2, (fract(aOffset*13.0)-0.5)*0.5);
+           // As progress gets closer to 1, snap to target
+           float pull = pow(progress, 3.0) * convergePhase;
+           pos = mix(pos, targetPoint, pull);
+        }
+      }
+      
+      // 5. Calculate Alpha and Size
+      vAlpha = smoothstep(0.0, 0.1, progress) * smoothstep(1.0, 0.8, progress);
+      
+      // Fade out completely in final stages (Stage 7+)
+      float fadeOutPhase = smoothstep(6.0, 7.0, uStage);
+      vAlpha *= (1.0 - fadeOutPhase);
+      
+      // Add random scatter based on aSize
+      vec3 scatter = vec3(
+        (fract(aOffset * 17.0) - 0.5),
+        (fract(aOffset * 23.0) - 0.5),
+        (fract(aOffset * 29.0) - 0.5)
+      ) * 0.4;
+      
+      pos += scatter;
+      
+      vec4 mvPosition = modelViewMatrix * vec4(pos + position * aSize, 1.0);
+      gl_Position = projectionMatrix * mvPosition;
     }
-    
-    // Gentle floating bob when nearly assembled
-    if (uAssembly > 0.85) {
-      float f = smoothstep(0.85, 1.0, uAssembly);
-      worldPos.y += sin(uTime * 0.6 + instanceUv.x * 5.0) * 0.025 * f;
+  `,
+  fragmentShader: `
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main() {
+      if (vAlpha < 0.01) discard;
+      // Soft circular particle
+      float d = distance(gl_PointCoord, vec2(0.5));
+      // gl_FragColor = vec4(vColor, vAlpha * smoothstep(0.5, 0.2, d)); // If using Points
+      gl_FragColor = vec4(vColor, vAlpha); // Using InstancedMesh cubes, no point coord needed
     }
-    
-    gl_Position = projectionMatrix * modelViewMatrix * worldPos;
-  }
-`;
+  `
+};
 
-const fragmentShader = `
-  uniform sampler2D tDiffuse;
-  uniform float uAssembly;
-  uniform float uColorMix;
-  uniform float uTime;
-  
-  varying vec2 vUv;
-  varying float vAssembly;
-  varying vec3 vRandom;
-  
-  void main() {
-    // PDF texture — slightly darkened for realistic paper under dim lighting
-    vec4 texColor = texture2D(tDiffuse, vUv);
-    texColor.rgb *= 0.88;
-    
-    // ---------- Reference-image–exact color palettes ----------
-    // Electric blue energy (HDR values to trigger bloom)
-    vec3 blueCore  = vec3(0.0, 0.85, 1.0) * 3.5;
-    vec3 blueEdge  = vec3(0.0, 0.35, 0.85) * 2.0;
-    
-    // Burning coal fire (orange / amber / red)
-    vec3 fireCore  = vec3(1.0, 0.7, 0.1)  * 4.0;
-    vec3 fireEdge  = vec3(1.0, 0.25, 0.0) * 2.5;
-    
-    // Green accent trail
-    vec3 greenGlow = vec3(0.1, 1.0, 0.5)  * 2.0;
-    
-    // Pick per-particle shade using random seed
-    vec3 blueColor = mix(blueEdge, blueCore, fract(vRandom.y * 7.0));
-    vec3 fireColor = mix(fireEdge, fireCore, fract(vRandom.z * 7.0));
-    float seed     = fract(vRandom.x * 13.0);
-    vec3 warmColor = seed > 0.7 ? greenGlow : fireColor;
-    
-    // Blend blue vs warm based on uColorMix uniform
-    float isWarm       = step(0.55, vRandom.x) * uColorMix;
-    vec3 particleColor = mix(blueColor, warmColor, isWarm);
-    
-    // Transition from glowing particles → readable PDF texture
-    float texBlend  = smoothstep(0.6, 0.95, vAssembly);
-    vec3 finalColor = mix(particleColor, texColor.rgb, texBlend);
-    
-    // Alpha pulsing for scattered particles
-    float alpha = 1.0;
-    if (vAssembly < 0.5) {
-      alpha = 0.75 + 0.25 * sin(uTime * 2.0 + vRandom.x * 6.28);
-    }
-    
-    gl_FragColor = vec4(finalColor, alpha);
-  }
-`;
-
-// ===================== PARTICLE FIELD (Three.js) =====================
-
-const ParticleField = ({ texture }) => {
+const ParticleStreams = ({ currentStage }) => {
   const meshRef = useRef();
   const materialRef = useRef();
-  const startRef = useRef(null);
-
-  const { uvs, randoms } = useMemo(() => {
-    const uvs = new Float32Array(COUNT * 2);
-    const randoms = new Float32Array(COUNT * 3);
-    for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
-        const i = y * COLS + x;
-        uvs[i * 2]     = x / COLS;
-        uvs[i * 2 + 1] = 1.0 - y / ROWS;
-        randoms[i * 3]     = (Math.random() - 0.5) * 2;
-        randoms[i * 3 + 1] = (Math.random() - 0.5) * 2;
-        randoms[i * 3 + 2] = (Math.random() - 0.5) * 2;
-      }
+  const count = 4000; // 1000 per color stream
+  
+  const { offsets, curveIndices, sizes } = useMemo(() => {
+    const offsets = new Float32Array(count);
+    const curveIndices = new Float32Array(count);
+    const sizes = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      offsets[i] = Math.random();
+      curveIndices[i] = i % 4; // 0, 1, 2, 3
+      sizes[i] = Math.random() * 0.03 + 0.01;
+      // Make 10% of them larger "bright" cubes
+      if (Math.random() > 0.9) sizes[i] *= 3.0;
     }
-    return { uvs, randoms };
+    return { offsets, curveIndices, sizes };
   }, []);
 
-  // Build the document grid (home positions for each cube)
+  useFrame((state) => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      // Smoothly interpolate stage for shader
+      materialRef.current.uniforms.uStage.value = THREE.MathUtils.lerp(
+        materialRef.current.uniforms.uStage.value,
+        currentStage,
+        0.05
+      );
+    }
+  });
+
+  // Dummy matrix for instancing (positions handled in vertex shader)
   useEffect(() => {
     if (!meshRef.current) return;
-    const d = new THREE.Object3D();
-    for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
-        const i = y * COLS + x;
-        d.position.set(
-          (x / COLS) * DOC_W - DOC_W / 2 + CUBE_W / 2,
-          (1 - y / ROWS) * DOC_H - DOC_H / 2 - CUBE_H / 2,
-          0
-        );
-        d.updateMatrix();
-        meshRef.current.setMatrixAt(i, d.matrix);
-      }
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < count; i++) {
+      meshRef.current.setMatrixAt(i, dummy.matrix);
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
   }, []);
 
-  // Animate shader uniforms at 60 fps
-  useFrame((state) => {
-    if (!startRef.current) startRef.current = state.clock.elapsedTime;
-    const elapsed = state.clock.elapsedTime - startRef.current;
-    const u = materialRef.current?.uniforms;
-    if (!u) return;
-
-    u.uTime.value = elapsed;
-
-    // ---- Determine current stage from elapsed time ----
-    let acc = 0, stage = 0, prog = 0;
-    for (let i = 0; i <= MAX_AUTO_STAGE; i++) {
-      if (elapsed < acc + STAGE_DURATIONS[i]) {
-        stage = i; prog = (elapsed - acc) / STAGE_DURATIONS[i]; break;
-      }
-      acc += STAGE_DURATIONS[i];
-      if (i === MAX_AUTO_STAGE) { stage = MAX_AUTO_STAGE; prog = 1; }
-    }
-
-    // ---- Map stage → uAssembly ----
-    let assembly = 0;
-    if (stage <= 4) assembly = 0;
-    else if (stage === 5) assembly = prog * 0.3;
-    else if (stage === 6) assembly = 0.3 + prog * 0.45;
-    else {
-      // Stage 7 — breathing pulse while holding
-      const breathe = 0.85 + Math.sin(elapsed * 0.5) * 0.08;
-      assembly = prog < 1 ? 0.75 + prog * 0.2 : breathe;
-    }
-    u.uAssembly.value = THREE.MathUtils.lerp(u.uAssembly.value, assembly, 0.04);
-
-    // ---- Map stage → uWaveIntensity ----
-    let wave = 0;
-    if (stage === 0) wave = prog * 0.6;
-    else if (stage <= 4) wave = 1.0;
-    else if (stage === 5) wave = 1.0 - prog * 0.6;
-    else if (stage === 6) wave = 0.4 - prog * 0.4;
-    u.uWaveIntensity.value = THREE.MathUtils.lerp(u.uWaveIntensity.value, wave, 0.04);
-
-    // ---- Map stage → uColorMix (blue-only vs orange/green mix) ----
-    let colorMix = 0;
-    if (stage <= 2) colorMix = stage === 2 ? prog * 0.4 : 0;
-    else if (stage <= 5) colorMix = 1.0;
-    else if (stage === 6) colorMix = 1.0 - prog;
-    u.uColorMix.value = THREE.MathUtils.lerp(u.uColorMix.value, colorMix, 0.04);
-
-    // Keep texture up to date
-    if (texture) u.tDiffuse.value = texture;
-  });
-
-  const shaderArgs = useMemo(() => ({
-    uniforms: {
-      tDiffuse: { value: texture },
-      uTime: { value: 0 },
-      uAssembly: { value: 0 },
-      uWaveIntensity: { value: 0 },
-      uColorMix: { value: 0 },
-    },
-    vertexShader,
-    fragmentShader,
-    transparent: true,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  }), [texture]);
-
   return (
-    <instancedMesh ref={meshRef} args={[null, null, COUNT]} frustumCulled={false}>
-      <boxGeometry args={[CUBE_W, CUBE_H, 0.04]}>
-        <instancedBufferAttribute attach="attributes-instanceUv" args={[uvs, 2]} />
-        <instancedBufferAttribute attach="attributes-aRandom" args={[randoms, 3]} />
+    <instancedMesh ref={meshRef} args={[null, null, count]} frustumCulled={false}>
+      <boxGeometry args={[1, 1, 1]}>
+        <instancedBufferAttribute attach="attributes-aOffset" args={[offsets, 1]} />
+        <instancedBufferAttribute attach="attributes-aCurveIndex" args={[curveIndices, 1]} />
+        <instancedBufferAttribute attach="attributes-aSize" args={[sizes, 1]} />
       </boxGeometry>
-      <shaderMaterial ref={materialRef} attach="material" args={[shaderArgs]} />
+      <shaderMaterial 
+        ref={materialRef}
+        args={[{
+          uniforms: StreamShader.uniforms,
+          vertexShader: StreamShader.vertexShader,
+          fragmentShader: StreamShader.fragmentShader,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        }]} 
+      />
     </instancedMesh>
   );
 };
 
-// ===================== GLOWING PLATFORM RINGS =====================
-
-const GlowingPlatform = ({ visible, intensity }) => {
-  const groupRef = useRef();
-
-  useFrame((state) => {
-    if (groupRef.current) groupRef.current.rotation.z = state.clock.elapsedTime * 0.12;
+// ===================== PROCESSING CORE / DOCUMENT =====================
+const ProcessingCore = ({ currentStage, texture }) => {
+  const coreRef = useRef();
+  const documentRef = useRef();
+  
+  // Dimensions for the final document
+  const DOC_W = 3.0;
+  const DOC_H = 4.24;
+  
+  useFrame((state, delta) => {
+    if (!coreRef.current || !documentRef.current) return;
+    
+    // Core appears at Stage 4 (Processing Data)
+    const showCore = currentStage >= 4;
+    // Core transforms to Document at Stage 6 (Reconstructing Resume)
+    const isDocument = currentStage >= 6;
+    
+    // Animate Core Wireframe (Scale and Rotation)
+    let targetScaleX = 0.01;
+    let targetScaleY = 0.01;
+    let targetScaleZ = 0.01;
+    let targetOpacity = 0.0;
+    
+    if (showCore) {
+      if (isDocument) {
+        // Expand to Document Plane
+        targetScaleX = DOC_W;
+        targetScaleY = DOC_H;
+        targetScaleZ = 0.01;
+        targetOpacity = 0.2; // Fade wireframe out slightly when document is visible
+      } else {
+        // Wireframe Cube (Processing Core)
+        targetScaleX = 1.0;
+        targetScaleY = 1.0;
+        targetScaleZ = 1.0;
+        targetOpacity = 1.0;
+        // Spin the core
+        coreRef.current.rotation.y += delta * 0.5;
+        coreRef.current.rotation.x += delta * 0.3;
+      }
+    }
+    
+    // Smooth Lerp Scale
+    coreRef.current.scale.x = THREE.MathUtils.lerp(coreRef.current.scale.x, targetScaleX, 0.05);
+    coreRef.current.scale.y = THREE.MathUtils.lerp(coreRef.current.scale.y, targetScaleY, 0.05);
+    coreRef.current.scale.z = THREE.MathUtils.lerp(coreRef.current.scale.z, targetScaleZ, 0.05);
+    coreRef.current.material.opacity = THREE.MathUtils.lerp(coreRef.current.material.opacity, targetOpacity, 0.05);
+    
+    // Snap rotation back to 0 when becoming document
+    if (isDocument) {
+      coreRef.current.rotation.y = THREE.MathUtils.lerp(coreRef.current.rotation.y, 0, 0.08);
+      coreRef.current.rotation.x = THREE.MathUtils.lerp(coreRef.current.rotation.x, 0, 0.08);
+    }
+    
+    // Animate Document PDF Mesh
+    let docOpacityTarget = isDocument ? 1.0 : 0.0;
+    documentRef.current.material.opacity = THREE.MathUtils.lerp(documentRef.current.material.opacity, docOpacityTarget, 0.03);
   });
 
-  if (!visible) return null;
+  return (
+    <group position={[2.5, -0.5, 0]}>
+      {/* The Wireframe Core (morphs into document edges) */}
+      <mesh ref={coreRef} scale={[0.01, 0.01, 0.01]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial color={C_BLUE} wireframe transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      
+      {/* The Real PDF Document Plane */}
+      <mesh ref={documentRef} position={[0, 0, 0.01]}>
+        <planeGeometry args={[DOC_W, DOC_H]} />
+        {texture ? (
+           <meshBasicMaterial map={texture} color="#e0e0e0" transparent opacity={0} side={THREE.DoubleSide} />
+        ) : (
+           <meshBasicMaterial color="#ffffff" transparent opacity={0} side={THREE.DoubleSide} />
+        )}
+      </mesh>
+    </group>
+  );
+};
 
-  const rings = [
-    { r: 2.2, thick: 0.014, col: [0, 2.4, 4.0], op: 0.6 },
-    { r: 1.8, thick: 0.012, col: [0, 3.0, 5.5], op: 0.5 },
-    { r: 1.3, thick: 0.010, col: [0, 3.6, 7.0], op: 0.4 },
-    { r: 0.8, thick: 0.008, col: [0, 4.0, 8.5], op: 0.3 },
-  ];
+// ===================== VERTICAL LIGHT RAYS =====================
+const LightRays = ({ currentStage }) => {
+  const meshRef = useRef();
+  
+  useFrame(() => {
+    if (!meshRef.current) return;
+    // Rays appear at Stage 4, get stronger, then slightly fade at end
+    let targetOpacity = 0.0;
+    if (currentStage >= 4 && currentStage < 8) targetOpacity = 0.6;
+    if (currentStage >= 8) targetOpacity = 0.3; // Stabilize
+    
+    meshRef.current.material.opacity = THREE.MathUtils.lerp(meshRef.current.material.opacity, targetOpacity, 0.05);
+  });
+  
+  const shader = {
+    uniforms: { uColor: { value: C_BLUE } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying vec2 vUv;
+      void main() {
+        // Fade out at the top (vUv.y = 1) and bottom
+        float alpha = smoothstep(1.0, 0.2, vUv.y) * smoothstep(0.0, 0.1, vUv.y);
+        // Vertical streaks using noise or sine
+        float streak = sin(vUv.x * 50.0) * 0.5 + 0.5;
+        alpha *= mix(0.5, 1.0, streak);
+        gl_FragColor = vec4(uColor, alpha);
+      }
+    `
+  };
 
   return (
-    <group ref={groupRef} position={[0, -DOC_H / 2 - 0.35, 0]} rotation={[Math.PI / 2.5, 0, 0]}>
+    <mesh ref={meshRef} position={[2.5, 1.5, -0.5]} scale={[4, 6, 1]}>
+      <planeGeometry args={[1, 1, 1, 1]} />
+      <shaderMaterial args={[{
+        uniforms: shader.uniforms,
+        vertexShader: shader.vertexShader,
+        fragmentShader: shader.fragmentShader,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }]} />
+    </mesh>
+  );
+};
+
+// ===================== PLATFORM RINGS =====================
+const Platform = ({ currentStage }) => {
+  const groupRef = useRef();
+  useFrame((state) => {
+    if (groupRef.current) groupRef.current.rotation.z = state.clock.elapsedTime * 0.2;
+  });
+  const rings = [
+    { r: 2.2, thick: 0.015, op: 0.8 },
+    { r: 1.8, thick: 0.012, op: 0.6 },
+    { r: 1.3, thick: 0.010, op: 0.4 },
+  ];
+  return (
+    <group position={[2.5, -2.6, 0]} rotation={[Math.PI / 2.5, 0, 0]} ref={groupRef}>
       {rings.map((ring, i) => (
         <mesh key={i}>
-          <torusGeometry args={[ring.r, ring.thick, 16, 128]} />
-          <meshBasicMaterial
-            color={ring.col}
-            transparent
-            opacity={ring.op * intensity}
-          />
+          <torusGeometry args={[ring.r, ring.thick, 32, 100]} />
+          <meshBasicMaterial color={C_BLUE} transparent opacity={ring.op} />
         </mesh>
       ))}
     </group>
   );
 };
 
-// ===================== MAIN COMPONENT =====================
+// ===================== HTML LABELS =====================
+const LabelsOverlay = ({ currentStage }) => {
+  // Show labels only in stages 2 to 4
+  const visible = currentStage >= 2 && currentStage <= 4;
+  
+  const labels = [
+    { text: 'EXPERIENCE', color: '#009DFF', top: '35%', left: '15%', linePath: 'M 50,50 L 150,150' },
+    { text: 'SKILLS', color: '#9D00FF', top: '25%', left: '35%', linePath: 'M 50,50 L 50,150' },
+    { text: 'PROJECTS', color: '#00FF66', top: '35%', left: '55%', linePath: 'M 50,50 L -50,150' },
+    { text: 'EDUCATION', color: '#FF6600', top: '45%', left: '75%', linePath: 'M 50,50 L -150,150' },
+  ];
 
+  if (!visible) return null;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+      {labels.map((lbl, i) => (
+        <div 
+          key={i} 
+          className="absolute" 
+          style={{ 
+            top: lbl.top, 
+            left: lbl.left,
+            animation: `fadeIn 0.5s ${i * 0.2}s ease-out both` 
+          }}
+        >
+          {/* Glowing Label Box */}
+          <div 
+            className="px-4 py-1 border rounded-lg text-[10px] font-bold tracking-widest bg-[#020408]/80 backdrop-blur-sm"
+            style={{ 
+              borderColor: lbl.color, 
+              color: lbl.color, 
+              boxShadow: `0 0 15px ${lbl.color}40` 
+            }}
+          >
+            {lbl.text}
+          </div>
+          
+          {/* SVG Connecting Line (Simulating 3D connection to the stream) */}
+          <svg className="absolute top-full left-1/2 overflow-visible" style={{ width: 1, height: 1 }}>
+             <path 
+               d={lbl.linePath} 
+               fill="none" 
+               stroke={lbl.color} 
+               strokeWidth="1.5" 
+               opacity="0.6"
+               strokeDasharray="4 4"
+               style={{ animation: 'dash 10s linear infinite' }}
+             />
+          </svg>
+        </div>
+      ))}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes dash { to { stroke-dashoffset: -100; } }
+      `}} />
+    </div>
+  );
+};
+
+
+// ===================== MAIN COMPONENT =====================
 export default function AnalysisAnimation({ file, onCancel }) {
   const [texture, setTexture] = useState(null);
   const [currentStage, setCurrentStage] = useState(0);
-  const [stageProgress, setStageProgress] = useState(0);
 
-  // Fallback white texture so particles render immediately (before PDF loads)
-  const defaultTexture = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    const c = document.createElement('canvas');
-    c.width = 4; c.height = 4;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 4, 4);
-    return new THREE.CanvasTexture(c);
-  }, []);
-
-  // Load uploaded PDF as a high-res texture
+  // Load PDF Texture
   useEffect(() => {
     if (!file) return;
     const load = async () => {
@@ -341,17 +432,16 @@ export default function AnalysisAnimation({ file, onCancel }) {
         const t = new THREE.CanvasTexture(c);
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = 16;
-        t.generateMipmaps = true;
         setTexture(t);
         URL.revokeObjectURL(url);
       } catch (e) {
-        console.error('PDF texture load error:', e);
+        console.error('PDF error:', e);
       }
     };
     load();
   }, [file]);
 
-  // Drive stage progression (for the CSS overlay — 60 ms tick)
+  // Stage Progression Timer
   useEffect(() => {
     const start = Date.now();
     const iv = setInterval(() => {
@@ -360,124 +450,59 @@ export default function AnalysisAnimation({ file, onCancel }) {
       for (let i = 0; i <= MAX_AUTO_STAGE; i++) {
         if (elapsed < acc + STAGE_DURATIONS[i]) {
           setCurrentStage(i);
-          setStageProgress(Math.min(1, (elapsed - acc) / STAGE_DURATIONS[i]));
           return;
         }
         acc += STAGE_DURATIONS[i];
       }
       setCurrentStage(MAX_AUTO_STAGE);
-      setStageProgress(1);
-    }, 60);
+    }, 100);
     return () => clearInterval(iv);
   }, []);
 
-  const showPlatform = currentStage >= 5;
-  const platformIntensity = showPlatform
-    ? Math.min(1, (currentStage - 4 + stageProgress) * 0.25)
-    : 0;
-  const showLabels = currentStage >= 2 && currentStage <= 4;
-  const activeTexture = texture || defaultTexture;
-
   return (
-    <div className="fixed inset-0 z-40 bg-[#020408]">
-      {/* =========== Full-Screen WebGL Canvas =========== */}
-      {activeTexture && (
-        <Canvas
-          camera={{ position: [0, 0, 7], fov: 45 }}
-          gl={{ toneMapping: THREE.NoToneMapping, alpha: false }}
-          style={{ background: '#020408' }}
-        >
-          <ambientLight intensity={0.3} />
-          <ParticleField texture={activeTexture} />
-          <GlowingPlatform visible={showPlatform} intensity={platformIntensity} />
-          <EffectComposer disableNormalPass>
-            <Bloom
-              luminanceThreshold={1.3}
-              luminanceSmoothing={0.2}
-              intensity={currentStage <= 5 ? 2.5 : 1.5}
-              mipmapBlur
-            />
-          </EffectComposer>
-        </Canvas>
-      )}
+    <div className="fixed inset-0 z-40 bg-[#020408] overflow-hidden flex items-center justify-center">
+      
+      {/* 3D Canvas */}
+      <Canvas camera={{ position: [0, 0, 7], fov: 45 }} gl={{ toneMapping: THREE.NoToneMapping, alpha: false }}>
+        <ambientLight intensity={0.5} />
+        <ParticleStreams currentStage={currentStage} />
+        <ProcessingCore currentStage={currentStage} texture={texture} />
+        <LightRays currentStage={currentStage} />
+        <Platform currentStage={currentStage} />
+        <EffectComposer disableNormalPass>
+          <Bloom luminanceThreshold={1.2} luminanceSmoothing={0.3} intensity={2.0} mipmapBlur />
+        </EffectComposer>
+      </Canvas>
 
-      {/* =========== Stage Title (top-left) =========== */}
+      {/* HTML Overlays */}
+      <LabelsOverlay currentStage={currentStage} />
+
+      {/* Top Left Title */}
       <div className="absolute top-10 left-10 z-50 pointer-events-none" key={currentStage}>
         <div className="flex items-center gap-4 mb-2">
-          <div className="w-10 h-10 rounded-full bg-[#009DFF] flex items-center justify-center text-sm font-bold text-white shadow-[0_0_20px_rgba(0,157,255,0.5)]">
+          <div className="w-10 h-10 rounded-full bg-[#009DFF]/20 border border-[#009DFF] flex items-center justify-center text-sm font-bold text-[#009DFF] shadow-[0_0_20px_rgba(0,157,255,0.3)]">
             {currentStage + 1}
           </div>
-          <h2
-            className="text-xl font-bold tracking-[0.2em] text-white uppercase"
-            style={{ animation: 'slideInTitle 0.5s ease-out both' }}
-          >
-            {STAGES[currentStage].title}
+          <h2 className="text-xl font-bold tracking-[0.2em] text-white uppercase" style={{ animation: 'fadeInTitle 0.5s ease-out both' }}>
+            {STAGES[currentStage]?.title || 'ANALYZING'}
           </h2>
         </div>
-        <p
-          className="text-white/50 text-sm ml-14"
-          style={{ animation: 'fadeInSub 0.7s 0.15s ease-out both' }}
-        >
-          {STAGES[currentStage].subtitle}
+        <p className="text-white/50 text-sm ml-14" style={{ animation: 'fadeInSub 0.7s 0.15s ease-out both' }}>
+          {STAGES[currentStage]?.subtitle || 'Please wait...'}
         </p>
       </div>
 
-      {/* =========== Floating Section Labels (stages 3–5) =========== */}
-      {showLabels && (
-        <div className="absolute inset-0 z-50 pointer-events-none">
-          {SECTION_LABELS.map((label, i) => (
-            <div
-              key={label.text}
-              className="absolute px-4 py-2 bg-[#0a0f1a]/70 backdrop-blur-md border border-[#009DFF]/40 rounded-lg text-white text-xs font-bold tracking-[0.15em] shadow-[0_0_15px_rgba(0,157,255,0.25)]"
-              style={{
-                left: label.x,
-                top: label.y,
-                animation: `fadeInLabel 0.5s ${i * 0.15}s ease-out both`,
-              }}
-            >
-              {label.text}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* =========== Bottom: progress bar + cancel =========== */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4">
-        <div className="w-72 h-1 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-[#009DFF] to-[#8c52ff] rounded-full transition-all duration-300 shadow-[0_0_10px_#009DFF]"
-            style={{
-              width: `${((currentStage + stageProgress) / STAGES.length) * 100}%`,
-            }}
-          />
-        </div>
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 flex items-center gap-2 text-sm text-white/40 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all"
-        >
-          <ArrowLeft size={16} /> Cancel Analysis
+      {/* Bottom Progress & Cancel */}
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4">
+        <button onClick={onCancel} className="px-6 py-2 border border-white/10 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all text-sm tracking-wider uppercase">
+          Cancel Analysis
         </button>
       </div>
 
-      {/* =========== CSS Keyframes =========== */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes slideInTitle {
-              from { opacity: 0; transform: translateX(-20px); }
-              to   { opacity: 1; transform: translateX(0); }
-            }
-            @keyframes fadeInSub {
-              from { opacity: 0; }
-              to   { opacity: 1; }
-            }
-            @keyframes fadeInLabel {
-              from { opacity: 0; transform: translateY(12px); }
-              to   { opacity: 1; transform: translateY(0); }
-            }
-          `,
-        }}
-      />
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeInTitle { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeInSub { from { opacity: 0; } to { opacity: 1; } }
+      `}} />
     </div>
   );
 }
