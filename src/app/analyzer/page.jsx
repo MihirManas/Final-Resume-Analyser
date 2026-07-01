@@ -7,7 +7,16 @@ import gsap from 'gsap';
 import { styles } from '@/utils/styles';
 import TicTacToeGame from '@/components/TicTacToeGame';
 import Dashboard from '@/components/Dashboard';
-import HolographicResume from '@/components/HolographicResume';
+import dynamic from 'next/dynamic';
+
+const HolographicResume = dynamic(() => import('@/components/HolographicResume'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-[280px] h-[380px] bg-[#020408]/40 border border-[#009DFF]/40 rounded-xl flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-[#009DFF] animate-spin" />
+    </div>
+  )
+});
 
 export default function App() {
   const [bootComplete, setBootComplete] = useState(true);
