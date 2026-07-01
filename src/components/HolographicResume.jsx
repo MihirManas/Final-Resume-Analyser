@@ -75,6 +75,29 @@ const LightRays = () => {
 };
 
 // ===================== DOCUMENT PLANE =====================
+const DocumentShader = {
+  uniforms: { tDiffuse: { value: null }, uOpacity: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uOpacity;
+    varying vec2 vUv;
+    void main() {
+      vec4 texColor = texture2D(tDiffuse, vUv);
+      // Invert colors to match the dark cinematic theme (white text on dark)
+      vec3 inverted = 1.0 - texColor.rgb;
+      // Add a slight deep blue/cyan glass tint
+      vec3 tinted = inverted * vec3(0.5, 0.8, 1.0) + vec3(0.0, 0.1, 0.2);
+      
+      // Make the dark background slightly transparent for the glass effect
+      float alpha = max(inverted.r, max(inverted.g, inverted.b)); // The brighter the text, the more opaque
+      alpha = mix(0.7, 1.0, alpha); // Base opacity 0.7 for the "glass"
+      
+      gl_FragColor = vec4(tinted, uOpacity * alpha);
+    }
+  `
+};
+
 const DocumentMesh = ({ texture, visible }) => {
   const meshRef = useRef();
   
@@ -89,7 +112,11 @@ const DocumentMesh = ({ texture, visible }) => {
     
     // Fade in/out based on visibility
     const targetOpacity = visible ? 1 : 0;
-    meshRef.current.material.opacity = THREE.MathUtils.lerp(meshRef.current.material.opacity, targetOpacity, 0.05);
+    if (meshRef.current.material.uniforms) {
+      meshRef.current.material.uniforms.uOpacity.value = THREE.MathUtils.lerp(meshRef.current.material.uniforms.uOpacity.value, targetOpacity, 0.05);
+    } else {
+      meshRef.current.material.opacity = THREE.MathUtils.lerp(meshRef.current.material.opacity, targetOpacity, 0.05);
+    }
   });
 
   return (
@@ -98,9 +125,15 @@ const DocumentMesh = ({ texture, visible }) => {
       <mesh ref={meshRef} position={[0, 0, 0]}>
         <planeGeometry args={[DOC_W, DOC_H]} />
         {texture ? (
-           <meshBasicMaterial map={texture} transparent opacity={0} color="#e0e0e0" />
+           <shaderMaterial args={[{
+             uniforms: { tDiffuse: { value: texture }, uOpacity: { value: 0 } },
+             vertexShader: DocumentShader.vertexShader,
+             fragmentShader: DocumentShader.fragmentShader,
+             transparent: true,
+             side: THREE.DoubleSide
+           }]} />
         ) : (
-           <meshBasicMaterial transparent opacity={0} color="#ffffff" />
+           <meshBasicMaterial transparent opacity={0} color="#001133" />
         )}
       </mesh>
       
@@ -129,16 +162,26 @@ export default function HolographicResume({ file, currentStep }) {
         const url = URL.createObjectURL(file);
         const pdf = await pdfjsLib.getDocument(url).promise;
         const page = await pdf.getPage(1);
-        const vp = page.getViewport({ scale: 3 });
+        const vp = page.getViewport({ scale: 5 });
         const c = document.createElement('canvas');
         c.width = vp.width; c.height = vp.height;
         const ctx = c.getContext('2d');
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, c.width, c.height);
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: vp,
+          background: 'rgba(255,255,255,1)'
+        };
+        await page.render(renderContext).promise;
+        
         const t = new THREE.CanvasTexture(c);
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = 16;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        t.magFilter = THREE.LinearFilter;
+        t.generateMipmaps = true;
         setTexture(t);
         URL.revokeObjectURL(url);
       } catch (e) {

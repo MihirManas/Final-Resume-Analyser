@@ -197,6 +197,24 @@ const ParticleStreams = ({ currentStage }) => {
 };
 
 // ===================== PROCESSING CORE / DOCUMENT =====================
+const DocumentShader = {
+  uniforms: { tDiffuse: { value: null }, uOpacity: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uOpacity;
+    varying vec2 vUv;
+    void main() {
+      vec4 texColor = texture2D(tDiffuse, vUv);
+      vec3 inverted = 1.0 - texColor.rgb;
+      vec3 tinted = inverted * vec3(0.5, 0.8, 1.0) + vec3(0.0, 0.1, 0.2);
+      float alpha = max(inverted.r, max(inverted.g, inverted.b));
+      alpha = mix(0.7, 1.0, alpha);
+      gl_FragColor = vec4(tinted, uOpacity * alpha);
+    }
+  `
+};
+
 const ProcessingCore = ({ currentStage, texture }) => {
   const coreRef = useRef();
   const documentRef = useRef();
@@ -250,7 +268,11 @@ const ProcessingCore = ({ currentStage, texture }) => {
     }
     
     let docOpacityTarget = isDocument ? 1.0 : 0.0;
-    documentRef.current.material.opacity = THREE.MathUtils.lerp(documentRef.current.material.opacity, docOpacityTarget, 0.04);
+    if (documentRef.current.material.uniforms) {
+      documentRef.current.material.uniforms.uOpacity.value = THREE.MathUtils.lerp(documentRef.current.material.uniforms.uOpacity.value, docOpacityTarget, 0.04);
+    } else {
+      documentRef.current.material.opacity = THREE.MathUtils.lerp(documentRef.current.material.opacity, docOpacityTarget, 0.04);
+    }
   });
 
   return (
@@ -271,9 +293,15 @@ const ProcessingCore = ({ currentStage, texture }) => {
       <mesh ref={documentRef} position={[0, 0, 0.01]}>
         <planeGeometry args={[DOC_W, DOC_H]} />
         {texture ? (
-           <meshBasicMaterial map={texture} color="#e0e0e0" transparent opacity={0} side={THREE.DoubleSide} />
+           <shaderMaterial args={[{
+             uniforms: { tDiffuse: { value: texture }, uOpacity: { value: 0 } },
+             vertexShader: DocumentShader.vertexShader,
+             fragmentShader: DocumentShader.fragmentShader,
+             transparent: true,
+             side: THREE.DoubleSide
+           }]} />
         ) : (
-           <meshBasicMaterial color="#ffffff" transparent opacity={0} side={THREE.DoubleSide} />
+           <meshBasicMaterial color="#001133" transparent opacity={0} side={THREE.DoubleSide} />
         )}
       </mesh>
     </group>
@@ -428,16 +456,26 @@ export default function AnalysisAnimation({ file, onCancel }) {
         const url = URL.createObjectURL(file);
         const pdf = await pdfjsLib.getDocument(url).promise;
         const page = await pdf.getPage(1);
-        const vp = page.getViewport({ scale: 4 });
+        const vp = page.getViewport({ scale: 5 });
         const c = document.createElement('canvas');
         c.width = vp.width; c.height = vp.height;
         const ctx = c.getContext('2d');
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, c.width, c.height);
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: vp,
+          background: 'rgba(255,255,255,1)'
+        };
+        await page.render(renderContext).promise;
+        
         const t = new THREE.CanvasTexture(c);
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = 16;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        t.magFilter = THREE.LinearFilter;
+        t.generateMipmaps = true;
         setTexture(t);
         URL.revokeObjectURL(url);
       } catch (e) {

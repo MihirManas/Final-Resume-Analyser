@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { Upload, ChevronRight, Check, Search, FileText } from 'lucide-react';
+import { Upload, ChevronRight, Check, Search, FileText, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Dashboard from '@/components/Dashboard';
