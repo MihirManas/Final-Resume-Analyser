@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -21,120 +20,103 @@ const STAGES = [
 const STAGE_DURATIONS = [3, 3, 3, 3.5, 4, 3.5, 4, 3.5, 3];
 const MAX_AUTO_STAGE = 7;
 
-// ===================== PARTICLE CUBES STREAMS =====================
-const StreamShader = {
-  uniforms: { uTime: { value: 0 }, uStage: { value: 0 } },
+// ===================== CHIP ASSEMBLY SHADER =====================
+const ChipShader = {
+  uniforms: { uTime: { value: 0 }, uStage: { value: 0 }, uColor: { value: new THREE.Color("#009DFF") } },
   vertexShader: `
     uniform float uTime;
     uniform float uStage;
     
-    attribute float aCurveIndex; 
-    attribute float aOffset;
-    attribute float aSize;
-    attribute vec3 aRandom;
+    attribute vec3 aStartPos;
+    attribute vec3 aTargetPos;
+    attribute float aDelay;
     
-    varying vec3 vColor;
     varying float vAlpha;
+    varying float vGlow;
     
     void main() {
-      // Deep neon colors
-      vec3 colBlue = vec3(0.0, 0.4, 1.0);
-      vec3 colPurple = vec3(0.5, 0.0, 1.0);
-      vec3 colGreen = vec3(0.0, 0.8, 0.3);
-      vec3 colOrange = vec3(1.0, 0.3, 0.0);
+      // Build wave sweeps from bottom to top of document (-1.98 to 1.98)
+      float normalizedY = (aTargetPos.y + 1.98) / 3.96;
       
-      vec3 color = colBlue;
-      float splitPhase = smoothstep(2.0, 3.0, uStage);
-      if (aCurveIndex > 0.5 && aCurveIndex < 1.5) color = mix(colBlue, colPurple, splitPhase);
-      if (aCurveIndex > 1.5 && aCurveIndex < 2.5) color = mix(colBlue, colGreen, splitPhase);
-      if (aCurveIndex > 2.5) color = mix(colBlue, colOrange, splitPhase);
+      // Stages 1 to 6 represent the building process
+      float buildProgress = smoothstep(1.0, 6.0, uStage);
       
-      // Make them purely their neon color, no white center blowout
-      vColor = color;
+      // Each chip's progress is based on global wave and its vertical position
+      float chipStart = normalizedY * 0.7 + aDelay * 0.2; 
+      float localProgress = smoothstep(chipStart, chipStart + 0.15, buildProgress);
       
-      float speed = mix(0.1, 0.25, smoothstep(2.0, 5.0, uStage));
-      float progress = fract(aOffset + uTime * speed);
+      // Easing (Cubic Out)
+      float p = localProgress;
+      float easeOut = 1.0 - pow(1.0 - p, 3.0);
       
-      float startX = -9.0;
-      float endX = 3.0; // Central Core X Position
-      vec3 corePos = vec3(3.0, 0.0, 0.0);
+      vec3 pos = mix(aStartPos, aTargetPos, easeOut);
       
-      vec3 pos = vec3(mix(startX, endX, progress), 0.0, 0.0);
-      
-      // Main gentle wave
-      float waveFreq = 1.0;
-      float waveAmp = 1.0;
-      pos.y = sin(progress * waveFreq * 3.14159 + uTime) * waveAmp;
-      pos.z = cos(progress * waveFreq * 3.14159 + uTime * 0.5) * waveAmp * 0.5;
-      
-      // Wide stream spread so they are distinct floating cubes, not a solid snake!
-      vec3 spreadDir = aRandom;
-      float spreadAmount = mix(1.0, 2.5, smoothstep(1.0, 3.0, uStage));
-      
-      if (uStage >= 2.0) {
-        if (aCurveIndex == 0.0) pos.y += spreadAmount * 0.8;
-        if (aCurveIndex == 1.0) pos.y += spreadAmount * 0.2;
-        if (aCurveIndex == 2.0) pos.y -= spreadAmount * 0.2;
-        if (aCurveIndex == 3.0) pos.y -= spreadAmount * 0.8;
-        
-        // Converge to Cube Core
-        float convergePhase = smoothstep(3.5, 4.5, uStage);
-        if (convergePhase > 0.0) {
-           vec3 targetPoint = corePos + vec3(-1.0, (aCurveIndex - 1.5) * 0.3, aRandom.z * 0.5);
-           float pull = pow(progress, 2.0) * convergePhase;
-           pos = mix(pos, targetPoint, pull);
-        }
+      // Add subtle floating to assembled pieces before final solidification
+      if (localProgress >= 1.0 && uStage < 7.0) {
+          pos.z += sin(uTime * 3.0 + aTargetPos.x * 10.0 + aTargetPos.y * 10.0) * 0.02;
       }
       
-      // Add significant random scatter so they don't overlap
-      pos += spreadDir * spreadAmount * 0.5;
-      
-      vAlpha = smoothstep(0.0, 0.1, progress) * smoothstep(1.0, 0.8, progress);
-      vAlpha *= (1.0 - smoothstep(6.0, 7.0, uStage));
-      
-      // Gentle tumble
-      float angle = uTime * 0.5 + aOffset * 5.0;
+      // Tumbling effect while flying up
+      float angle = (1.0 - easeOut) * 15.0 * aDelay;
       float s = sin(angle); float c = cos(angle);
       mat3 rotY = mat3(c, 0, s, 0, 1, 0, -s, 0, c);
       mat3 rotX = mat3(1, 0, 0, 0, c, -s, 0, s, c);
       
-      vec3 finalPos = pos + rotX * rotY * position * aSize;
+      vec3 finalPos = pos + rotX * rotY * position;
+      
+      // Fade out slowly in the final stages to reveal the clean document underneath
+      vAlpha = smoothstep(0.0, 0.1, localProgress) * (1.0 - smoothstep(6.5, 7.5, uStage));
+      vGlow = 1.0 - localProgress; // Glows brightly while flying
+      
       gl_Position = projectionMatrix * modelViewMatrix * vec4(finalPos, 1.0);
     }
   `,
   fragmentShader: `
-    varying vec3 vColor;
+    uniform vec3 uColor;
     varying float vAlpha;
+    varying float vGlow;
     void main() {
       if (vAlpha < 0.01) discard;
-      // Pure neon color
-      gl_FragColor = vec4(vColor, vAlpha * 0.9);
+      vec3 finalColor = mix(uColor, vec3(1.0, 1.0, 1.0), vGlow * 0.6);
+      gl_FragColor = vec4(finalColor, vAlpha * (0.6 + vGlow * 0.4));
     }
   `
 };
 
-const ParticleStreams = ({ currentStage }) => {
+const ChipAssembly = ({ currentStage }) => {
   const meshRef = useRef();
   const materialRef = useRef();
-  // DRASTICALLY reduced density so they are distinct cubes, not a solid wall
-  const count = 300; 
   
-  const { offsets, curveIndices, sizes, randoms } = useMemo(() => {
-    const offsets = new Float32Array(count);
-    const curveIndices = new Float32Array(count);
-    const sizes = new Float32Array(count);
-    const randoms = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      offsets[i] = Math.random();
-      curveIndices[i] = i % 4;
-      const rand = Math.random();
-      // Most are small, some are hero cubes
-      sizes[i] = rand > 0.95 ? 0.2 : (rand > 0.8 ? 0.1 : 0.02 + Math.random() * 0.04);
-      randoms[i*3] = (Math.random() - 0.5) * 2.0;
-      randoms[i*3+1] = (Math.random() - 0.5) * 2.0;
-      randoms[i*3+2] = (Math.random() - 0.5) * 2.0;
+  const COLS = 45;
+  const ROWS = 65;
+  const count = COLS * ROWS; 
+  
+  const { startPos, targetPos, delays } = useMemo(() => {
+    const start = new Float32Array(count * 3);
+    const target = new Float32Array(count * 3);
+    const delays = new Float32Array(count);
+    
+    let i = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        // Target is grid on document (-1.4 to 1.4, -1.98 to 1.98)
+        const tx = (c / COLS) * 2.8 - 1.4;
+        const ty = (r / ROWS) * 3.96 - 1.98;
+        
+        target[i*3] = tx;
+        target[i*3+1] = ty;
+        target[i*3+2] = (Math.random() - 0.5) * 0.05; // Tight depth variation for assembled pieces
+        
+        // Start is scattered widely on the floor
+        start[i*3] = (Math.random() - 0.5) * 12.0;
+        start[i*3+1] = -4.0 + (Math.random() - 0.5) * 1.5; // Below view
+        start[i*3+2] = (Math.random() - 0.5) * 10.0 - 2.0;
+        
+        delays[i] = Math.random();
+        i++;
+      }
     }
-    return { offsets, curveIndices, sizes, randoms };
+    return { startPos: start, targetPos: target, delays };
   }, []);
 
   useFrame((state) => {
@@ -147,91 +129,100 @@ const ParticleStreams = ({ currentStage }) => {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[null, null, count]} frustumCulled={false}>
-      {/* BoxGeometry creates exactly what was shown in the image */}
-      <boxGeometry args={[1, 1, 1]}>
-        <instancedBufferAttribute attach="attributes-aOffset" args={[offsets, 1]} />
-        <instancedBufferAttribute attach="attributes-aCurveIndex" args={[curveIndices, 1]} />
-        <instancedBufferAttribute attach="attributes-aSize" args={[sizes, 1]} />
-        <instancedBufferAttribute attach="attributes-aRandom" args={[randoms, 3]} />
+    <instancedMesh ref={meshRef} args={[null, null, count]} frustumCulled={false} position={[0, 0.2, 0]}>
+      <boxGeometry args={[0.04, 0.04, 0.04]}>
+        <instancedBufferAttribute attach="attributes-aStartPos" args={[startPos, 3]} />
+        <instancedBufferAttribute attach="attributes-aTargetPos" args={[targetPos, 3]} />
+        <instancedBufferAttribute attach="attributes-aDelay" args={[delays, 1]} />
       </boxGeometry>
       <shaderMaterial 
         ref={materialRef}
         args={[{
-          uniforms: StreamShader.uniforms,
-          vertexShader: StreamShader.vertexShader,
-          fragmentShader: StreamShader.fragmentShader,
+          uniforms: ChipShader.uniforms,
+          vertexShader: ChipShader.vertexShader,
+          fragmentShader: ChipShader.fragmentShader,
           transparent: true,
           depthWrite: false,
           blending: THREE.AdditiveBlending,
-          wireframe: true // <--- THIS MAKES THEM LOOK EXACTLY LIKE NEON HOLOGRAPHIC CUBES
+          wireframe: false 
         }]} 
       />
     </instancedMesh>
   );
 };
 
-// ===================== PROCESSING CORE / DOCUMENT MORPH =====================
+// ===================== DOCUMENT MORPH =====================
 const DOC_W = 2.8;
 const DOC_H = 3.96;
-const FOLD = 0.4;
 
 const DocumentShader = {
-  uniforms: { tDiffuse: { value: null }, uOpacity: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, uStage: { value: 0 }, uTime: { value: 0 } },
   vertexShader: `
     varying vec2 vUv;
+    uniform float uTime;
+    uniform float uStage;
     void main() {
       vUv = vec2((position.x + ${DOC_W / 2.0}) / ${DOC_W}, (position.y + ${DOC_H / 2.0}) / ${DOC_H});
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      
+      vec3 pos = position;
+      // Gentle floating motion
+      pos.y += sin(uTime * 1.5) * 0.05;
+      
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
   `,
   fragmentShader: `
     uniform sampler2D tDiffuse;
-    uniform float uOpacity;
+    uniform float uStage;
     varying vec2 vUv;
     void main() {
+      // Reveal wave tracks slightly behind the chip assembly
+      float revealProgress = smoothstep(1.5, 6.5, uStage);
+      if (vUv.y > revealProgress * 1.1) discard; 
+      
       vec4 texColor = texture2D(tDiffuse, vUv);
       vec3 inverted = 1.0 - texColor.rgb;
-      vec3 tinted = inverted * vec3(0.5, 0.8, 1.0) + vec3(0.0, 0.1, 0.2);
-      float alpha = mix(0.7, 1.0, max(inverted.r, max(inverted.g, inverted.b)));
-      gl_FragColor = vec4(tinted, uOpacity * alpha);
+      
+      // Stage 6-8: color deepening phase
+      float deepen = smoothstep(6.0, 8.0, uStage);
+      
+      vec3 neonBlue = vec3(0.0, 0.6, 1.0);
+      vec3 deepNavy = vec3(0.02, 0.05, 0.1);
+      vec3 brightWhite = vec3(1.0, 1.0, 1.0);
+      
+      // Base holographic tint (while building)
+      vec3 baseTint = inverted * mix(neonBlue, brightWhite, 0.5) + vec3(0.0, 0.05, 0.15);
+      
+      // Final deepened color (solidified document)
+      // Make the background dark navy, and the text bright neon blue/white
+      vec3 textGlow = inverted * vec3(0.2, 0.7, 1.0) * 1.5; 
+      vec3 deepTint = mix(deepNavy, textGlow, max(inverted.r, max(inverted.g, inverted.b)));
+      
+      vec3 finalColor = mix(baseTint, deepTint, deepen);
+      
+      // Alpha becomes fully solid in deepened phase
+      float baseAlpha = mix(0.4, 0.9, max(inverted.r, max(inverted.g, inverted.b)));
+      float alpha = mix(baseAlpha, 1.0, deepen);
+      
+      // Add a scanline effect over the document
+      float scanline = sin(vUv.y * 200.0 - uStage * 10.0) * 0.05;
+      finalColor += scanline * (1.0 - deepen);
+      
+      gl_FragColor = vec4(finalColor, alpha);
     }
   `
 };
 
-const ProcessingCore = ({ currentStage, texture }) => {
-  const coreRef = useRef();
+const DocumentAssembly = ({ currentStage, texture }) => {
   const documentRef = useRef();
   
-  useFrame((state, delta) => {
-    if (!coreRef.current || !documentRef.current) return;
-    
-    const showCore = currentStage >= 4;
-    const morphToDocument = currentStage >= 6;
-    
-    // Core scales up during stages 4-5
-    let coreScale = showCore ? (morphToDocument ? 0 : 1.5) : 0.01;
-    let coreOpacity = showCore ? (morphToDocument ? 0 : 1.0) : 0.0;
-    
-    coreRef.current.scale.lerp(new THREE.Vector3(coreScale, coreScale, coreScale), 0.05);
-    coreRef.current.material.opacity = THREE.MathUtils.lerp(coreRef.current.material.opacity, coreOpacity, 0.1);
-    
-    // Spin the core
-    if (showCore && !morphToDocument) {
-      coreRef.current.rotation.y += delta * 0.5;
-      coreRef.current.rotation.x += delta * 0.3;
-    }
-
-    // Document fades in and bobs slightly
-    let docOpacityTarget = morphToDocument ? 1.0 : 0.0;
+  useFrame((state) => {
+    if (!documentRef.current) return;
     if (documentRef.current.material.uniforms) {
-      documentRef.current.material.uniforms.uOpacity.value = THREE.MathUtils.lerp(
-        documentRef.current.material.uniforms.uOpacity.value, docOpacityTarget, 0.04
+      documentRef.current.material.uniforms.uStage.value = THREE.MathUtils.lerp(
+        documentRef.current.material.uniforms.uStage.value, currentStage, 0.05
       );
-    }
-    
-    if (morphToDocument) {
-      documentRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.08;
+      documentRef.current.material.uniforms.uTime.value = state.clock.elapsedTime;
     }
   });
 
@@ -239,33 +230,18 @@ const ProcessingCore = ({ currentStage, texture }) => {
     const shape = new THREE.Shape();
     shape.moveTo(-DOC_W/2, -DOC_H/2);
     shape.lineTo(DOC_W/2, -DOC_H/2);
-    shape.lineTo(DOC_W/2, DOC_H/2 - FOLD);
-    shape.lineTo(DOC_W/2 - FOLD, DOC_H/2);
+    shape.lineTo(DOC_W/2, DOC_H/2);
     shape.lineTo(-DOC_W/2, DOC_H/2);
     shape.lineTo(-DOC_W/2, -DOC_H/2);
     return new THREE.ShapeGeometry(shape);
   }, []);
 
-  const edges = useMemo(() => new THREE.EdgesGeometry(docGeometry), [docGeometry]);
-
   return (
-    <group position={[3.0, 0, 0]}>
-      {/* Wireframe Data Core */}
-      <mesh ref={coreRef} scale={[0.01, 0.01, 0.01]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="#009DFF" wireframe transparent opacity={0} blending={THREE.AdditiveBlending} />
-        {/* Inner solid core */}
-        <mesh scale={[0.6, 0.6, 0.6]}>
-           <boxGeometry args={[1, 1, 1]} />
-           <meshBasicMaterial color="#0055ff" transparent opacity={0.3} blending={THREE.AdditiveBlending} />
-        </mesh>
-      </mesh>
-      
-      {/* Target Document */}
-      <mesh ref={documentRef} geometry={docGeometry} position={[0, 0, 0.01]}>
+    <group position={[0, 0.2, -0.01]}>
+      <mesh ref={documentRef} geometry={docGeometry}>
         {texture ? (
            <shaderMaterial args={[{
-             uniforms: { tDiffuse: { value: texture }, uOpacity: { value: 0 } },
+             uniforms: { tDiffuse: { value: texture }, uStage: { value: 0 }, uTime: { value: 0 } },
              vertexShader: DocumentShader.vertexShader,
              fragmentShader: DocumentShader.fragmentShader,
              transparent: true,
@@ -274,10 +250,6 @@ const ProcessingCore = ({ currentStage, texture }) => {
         ) : (
            <meshBasicMaterial color="#010409" transparent opacity={0} side={THREE.DoubleSide} />
         )}
-        {/* Edge Glow for Document */}
-        <lineSegments geometry={edges}>
-          <lineBasicMaterial color={new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(2.0)} transparent opacity={0.5} />
-        </lineSegments>
       </mesh>
     </group>
   );
@@ -287,23 +259,23 @@ const ProcessingCore = ({ currentStage, texture }) => {
 const Platform = ({ currentStage }) => {
   const groupRef = useRef();
   useFrame((state) => {
-    if (groupRef.current) groupRef.current.rotation.z = state.clock.elapsedTime * 0.2;
+    if (groupRef.current) groupRef.current.rotation.z = state.clock.elapsedTime * 0.15;
   });
   
-  // Platform appears under the core location
+  // Platform appears directly under the center assembly
   return (
-    <group position={[3.0, -2.5, 0]} rotation={[Math.PI / 2.3, 0, 0]} ref={groupRef}>
+    <group position={[0, -3.5, 0]} rotation={[Math.PI / 2.2, 0, 0]} ref={groupRef}>
       <mesh>
-        <torusGeometry args={[2.8, 0.015, 32, 100]} />
-        <meshBasicMaterial color="#0066ff" transparent opacity={0.8} blending={THREE.AdditiveBlending} />
+        <torusGeometry args={[3.5, 0.02, 32, 100]} />
+        <meshBasicMaterial color="#009DFF" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh>
-        <torusGeometry args={[2.0, 0.01, 16, 100]} />
-        <meshBasicMaterial color="#0055ff" transparent opacity={0.5} blending={THREE.AdditiveBlending} />
+        <torusGeometry args={[2.5, 0.01, 16, 100]} />
+        <meshBasicMaterial color="#0066ff" transparent opacity={0.3} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh>
-        <circleGeometry args={[2.8, 64]} />
-        <meshBasicMaterial color="#002288" transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <circleGeometry args={[3.5, 64]} />
+        <meshBasicMaterial color="#002288" transparent opacity={0.1} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </group>
   );
@@ -311,13 +283,13 @@ const Platform = ({ currentStage }) => {
 
 // ===================== CSS OVERLAYS =====================
 const LabelsOverlay = ({ currentStage }) => {
-  const visible = currentStage >= 2 && currentStage <= 4;
+  const visible = currentStage >= 3 && currentStage <= 6;
   
   const labels = [
-    { text: 'EXPERIENCE', color: '#0066ff', top: '35%', left: '10%', linePath: 'M 50,30 L 150,150' },
-    { text: 'SKILLS', color: '#8800ff', top: '25%', left: '30%', linePath: 'M 50,30 L 70,180' },
-    { text: 'PROJECTS', color: '#00ff44', top: '30%', left: '50%', linePath: 'M 50,30 L -10,160' },
-    { text: 'EDUCATION', color: '#ff6600', top: '40%', left: '75%', linePath: 'M 50,30 L -150,120' },
+    { text: 'EXPERIENCE DATA', color: '#009DFF', top: '25%', left: '15%', linePath: 'M 50,30 L 150,150' },
+    { text: 'SKILL VECTORS', color: '#009DFF', top: '40%', left: '20%', linePath: 'M 50,30 L 150,50' },
+    { text: 'PROJECT METRICS', color: '#009DFF', top: '20%', left: '70%', linePath: 'M 50,30 L -100,160' },
+    { text: 'STRUCTURAL INTEGRITY', color: '#009DFF', top: '55%', left: '75%', linePath: 'M 50,30 L -150,0' },
   ];
 
   if (!visible) return null;
@@ -330,12 +302,12 @@ const LabelsOverlay = ({ currentStage }) => {
           className="absolute" 
           style={{ 
             top: lbl.top, left: lbl.left,
-            animation: `fadeIn 0.5s ${i * 0.2}s ease-out both` 
+            animation: `fadeIn 0.5s ${i * 0.3}s ease-out both` 
           }}
         >
           <div 
             className="px-4 py-1.5 border rounded-lg text-[10px] font-bold tracking-widest bg-[#010409]/90 backdrop-blur-md"
-            style={{ borderColor: lbl.color, color: 'white', boxShadow: `0 0 15px ${lbl.color}60` }}
+            style={{ borderColor: lbl.color, color: 'white', boxShadow: `0 0 15px ${lbl.color}40` }}
           >
             {lbl.text}
           </div>
@@ -355,7 +327,6 @@ const LabelsOverlay = ({ currentStage }) => {
   );
 };
 
-
 // ===================== MAIN COMPONENT =====================
 export default function AnalysisAnimation({ file, onCancel }) {
   const [texture, setTexture] = useState(null);
@@ -368,7 +339,7 @@ export default function AnalysisAnimation({ file, onCancel }) {
         const url = URL.createObjectURL(file);
         const pdf = await pdfjsLib.getDocument(url).promise;
         const page = await pdf.getPage(1);
-        const vp = page.getViewport({ scale: 5 });
+        const vp = page.getViewport({ scale: 4 });
         const c = document.createElement('canvas');
         c.width = vp.width; c.height = vp.height;
         const ctx = c.getContext('2d');
@@ -412,10 +383,10 @@ export default function AnalysisAnimation({ file, onCancel }) {
   return (
     <div className="fixed inset-0 z-[100] bg-[#010409] overflow-hidden flex items-center justify-center">
       
-      <Canvas camera={{ position: [0, 0, 8], fov: 45 }} gl={{ toneMapping: THREE.NoToneMapping, alpha: false }} style={{ background: '#010409' }}>
+      <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} gl={{ toneMapping: THREE.NoToneMapping, alpha: false }} style={{ background: '#010409' }}>
         <ambientLight intensity={0.5} />
-        <ParticleStreams currentStage={currentStage} />
-        <ProcessingCore currentStage={currentStage} texture={texture} />
+        <ChipAssembly currentStage={currentStage} />
+        <DocumentAssembly currentStage={currentStage} texture={texture} />
         <Platform currentStage={currentStage} />
       </Canvas>
 
@@ -423,7 +394,7 @@ export default function AnalysisAnimation({ file, onCancel }) {
 
       <div className="absolute top-12 left-12 z-50 pointer-events-none flex flex-col gap-2 transition-opacity duration-300" key={currentStage}>
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-[#010409] border border-[#0066ff]/40 flex items-center justify-center text-sm font-bold text-white shadow-[0_0_15px_rgba(0,102,255,0.3)]">
+          <div className="w-10 h-10 rounded-lg bg-[#010409] border border-[#009DFF]/40 flex items-center justify-center text-sm font-bold text-white shadow-[0_0_15px_rgba(0,157,255,0.3)]">
             {currentStage + 1}
           </div>
           <h2 className="text-xl font-bold tracking-[0.15em] text-white uppercase animate-[fadeInLeft_0.5s_ease-out]">
