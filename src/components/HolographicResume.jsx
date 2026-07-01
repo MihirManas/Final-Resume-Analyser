@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -7,10 +7,13 @@ import * as pdfjsLib from 'pdfjs-dist';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
+const DOC_W = 2.8;
+const DOC_H = 3.96;
+const FOLD = 0.4;
+
 // ===================== GLOWING PLATFORM RINGS =====================
 const Platform = () => {
   const groupRef = useRef();
-  
   useFrame((state) => {
     if (groupRef.current) {
       groupRef.current.rotation.z = state.clock.elapsedTime * 0.2;
@@ -18,114 +21,120 @@ const Platform = () => {
   });
 
   const rings = [
-    { r: 2.5, thick: 0.015, op: 0.8 },
-    { r: 2.1, thick: 0.012, op: 0.5 },
-    { r: 1.6, thick: 0.010, op: 0.3 },
-    { r: 1.0, thick: 0.008, op: 0.2 },
+    { r: 2.8, thick: 0.015, op: 0.8 },
+    { r: 2.4, thick: 0.012, op: 0.5 },
+    { r: 1.8, thick: 0.010, op: 0.3 },
+    { r: 1.2, thick: 0.008, op: 0.2 },
   ];
 
   return (
     <group position={[0, -2.5, 0]} rotation={[Math.PI / 2.3, 0, 0]} ref={groupRef}>
       {rings.map((ring, i) => (
         <mesh key={i}>
-          <torusGeometry args={[ring.r, ring.thick, 32, 100]} />
-          <meshBasicMaterial color={new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(2.0)} transparent opacity={ring.op} />
+          <torusGeometry args={[ring.r, ring.thick, 64, 100]} />
+          <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0).multiplyScalar(2.5)} transparent opacity={ring.op} />
         </mesh>
       ))}
       
-      {/* Platform inner glow */}
+      {/* Dashed outer ring */}
       <mesh>
-        <circleGeometry args={[2.5, 64]} />
-        <meshBasicMaterial color={new THREE.Color(0.0, 0.3, 0.8)} transparent opacity={0.1} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <torusGeometry args={[3.2, 0.01, 16, 100]} />
+        <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0)} transparent opacity={0.6} wireframe />
+      </mesh>
+      
+      <mesh>
+        <circleGeometry args={[2.8, 64]} />
+        <meshBasicMaterial color={new THREE.Color(0.0, 0.2, 0.6)} transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </group>
   );
 };
 
-// ===================== VERTICAL LIGHT RAYS =====================
-const LightRays = () => {
-  const shader = {
-    uniforms: { uColor: { value: new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(1.5) } },
-    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `
-      uniform vec3 uColor;
-      varying vec2 vUv;
-      void main() {
-        float alpha = smoothstep(1.0, 0.0, vUv.y) * smoothstep(0.0, 0.2, vUv.y);
-        float streak = sin(vUv.x * 40.0) * 0.5 + 0.5;
-        alpha *= mix(0.2, 0.8, streak);
-        gl_FragColor = vec4(uColor, alpha * 0.4);
-      }
-    `
-  };
-
-  return (
-    <mesh position={[0, -0.5, -0.5]} scale={[4, 5, 1]}>
-      <planeGeometry args={[1, 1, 1, 1]} />
-      <shaderMaterial args={[{
-        uniforms: shader.uniforms,
-        vertexShader: shader.vertexShader,
-        fragmentShader: shader.fragmentShader,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      }]} />
-    </mesh>
-  );
-};
-
-// ===================== DOCUMENT PLANE =====================
+// ===================== DOCUMENT PLANE (WITH FOLDED CORNER) =====================
 const DocumentShader = {
   uniforms: { tDiffuse: { value: null }, uOpacity: { value: 0 } },
-  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      // Calculate UV based on position to map full texture onto custom shape
+      vUv = vec2((position.x + ${DOC_W / 2.0}) / ${DOC_W}, (position.y + ${DOC_H / 2.0}) / ${DOC_H});
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform float uOpacity;
     varying vec2 vUv;
     void main() {
       vec4 texColor = texture2D(tDiffuse, vUv);
-      // Invert colors to match the dark cinematic theme (white text on dark)
+      
+      // If it's a white resume, invert it. Black text becomes white.
       vec3 inverted = 1.0 - texColor.rgb;
-      // Add a slight deep blue/cyan glass tint
-      vec3 tinted = inverted * vec3(0.5, 0.8, 1.0) + vec3(0.0, 0.1, 0.2);
       
-      // Make the dark background slightly transparent for the glass effect
-      float alpha = max(inverted.r, max(inverted.g, inverted.b)); // The brighter the text, the more opaque
-      alpha = mix(0.7, 1.0, alpha); // Base opacity 0.7 for the "glass"
+      // Apply dark blue glassmorphism background and bright cyan text
+      vec3 darkGlass = vec3(0.01, 0.05, 0.15); // Deep blue background
+      vec3 brightText = vec3(0.8, 0.9, 1.0);   // Cyan-tinted white text
       
-      gl_FragColor = vec4(tinted, uOpacity * alpha);
+      // Determine what is text vs background. The brighter the inverted, the more it is text.
+      float isText = max(inverted.r, max(inverted.g, inverted.b));
+      
+      vec3 finalColor = mix(darkGlass, brightText, isText);
+      float alpha = mix(0.6, 1.0, isText); // Background is semi-transparent, text is solid
+      
+      gl_FragColor = vec4(finalColor, uOpacity * alpha);
     }
   `
 };
 
 const DocumentMesh = ({ texture, visible }) => {
-  const meshRef = useRef();
-  
-  const DOC_W = 2.8;
-  const DOC_H = 3.96; // 1:1.414 aspect ratio (A4)
+  const groupRef = useRef();
+  const materialRef = useRef();
   
   useFrame((state) => {
-    if (!meshRef.current) return;
+    if (!groupRef.current) return;
     
     // Gentle floating bob
-    meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.05;
+    groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.08;
     
     // Fade in/out based on visibility
     const targetOpacity = visible ? 1 : 0;
-    if (meshRef.current.material.uniforms) {
-      meshRef.current.material.uniforms.uOpacity.value = THREE.MathUtils.lerp(meshRef.current.material.uniforms.uOpacity.value, targetOpacity, 0.05);
-    } else {
-      meshRef.current.material.opacity = THREE.MathUtils.lerp(meshRef.current.material.opacity, targetOpacity, 0.05);
+    if (materialRef.current) {
+      materialRef.current.uniforms.uOpacity.value = THREE.MathUtils.lerp(
+        materialRef.current.uniforms.uOpacity.value, targetOpacity, 0.05
+      );
     }
   });
 
+  // Create Custom Shape with Top-Right Folded Corner
+  const docGeometry = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-DOC_W/2, -DOC_H/2);
+    shape.lineTo(DOC_W/2, -DOC_H/2);
+    shape.lineTo(DOC_W/2, DOC_H/2 - FOLD);
+    shape.lineTo(DOC_W/2 - FOLD, DOC_H/2);
+    shape.lineTo(-DOC_W/2, DOC_H/2);
+    shape.lineTo(-DOC_W/2, -DOC_H/2);
+    return new THREE.ShapeGeometry(shape);
+  }, []);
+
+  const foldGeometry = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(DOC_W/2 - FOLD, DOC_H/2);
+    shape.lineTo(DOC_W/2, DOC_H/2 - FOLD);
+    shape.lineTo(DOC_W/2 - FOLD, DOC_H/2 - FOLD);
+    shape.lineTo(DOC_W/2 - FOLD, DOC_H/2);
+    return new THREE.ShapeGeometry(shape);
+  }, []);
+
+  const edges = useMemo(() => new THREE.EdgesGeometry(docGeometry), [docGeometry]);
+  const foldEdges = useMemo(() => new THREE.EdgesGeometry(foldGeometry), [foldGeometry]);
+
   return (
-    <group>
-      {/* The actual PDF Plane */}
-      <mesh ref={meshRef} position={[0, 0, 0]}>
-        <planeGeometry args={[DOC_W, DOC_H]} />
+    <group ref={groupRef}>
+      {/* Main Glass Document */}
+      <mesh geometry={docGeometry}>
         {texture ? (
-           <shaderMaterial args={[{
+           <shaderMaterial ref={materialRef} args={[{
              uniforms: { tDiffuse: { value: texture }, uOpacity: { value: 0 } },
              vertexShader: DocumentShader.vertexShader,
              fragmentShader: DocumentShader.fragmentShader,
@@ -133,22 +142,30 @@ const DocumentMesh = ({ texture, visible }) => {
              side: THREE.DoubleSide
            }]} />
         ) : (
-           <meshBasicMaterial transparent opacity={0} color="#001133" />
+           <meshBasicMaterial color="#010409" transparent opacity={visible ? 0.6 : 0} side={THREE.DoubleSide} />
         )}
       </mesh>
+
+      {/* The Folded Flap */}
+      <mesh geometry={foldGeometry} position={[0, 0, 0.02]}>
+         <meshBasicMaterial color={new THREE.Color(0.0, 0.4, 1.0)} transparent opacity={visible ? 0.4 : 0} side={THREE.DoubleSide} />
+      </mesh>
       
-      {/* Glowing Edges Border */}
+      {/* Glowing Outlines */}
       {visible && (
-        <mesh position={[0, 0, 0.01]}>
-          <planeGeometry args={[DOC_W + 0.04, DOC_H + 0.04]} />
-          <meshBasicMaterial color={new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(2.0)} wireframe transparent opacity={0.3} />
-        </mesh>
+        <group>
+          <lineSegments geometry={edges}>
+            <lineBasicMaterial color={new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(2.5)} transparent opacity={0.8} />
+          </lineSegments>
+          <lineSegments geometry={foldEdges} position={[0, 0, 0.02]}>
+            <lineBasicMaterial color={new THREE.Color(0.0, 0.5, 1.0).multiplyScalar(2.5)} transparent opacity={0.8} />
+          </lineSegments>
+        </group>
       )}
     </group>
   );
 };
 
-// ===================== MAIN COMPONENT =====================
 export default function HolographicResume({ file, currentStep }) {
   const [texture, setTexture] = useState(null);
 
@@ -162,19 +179,18 @@ export default function HolographicResume({ file, currentStep }) {
         const url = URL.createObjectURL(file);
         const pdf = await pdfjsLib.getDocument(url).promise;
         const page = await pdf.getPage(1);
-        const vp = page.getViewport({ scale: 5 });
+        const vp = page.getViewport({ scale: 5 }); // High resolution
         const c = document.createElement('canvas');
         c.width = vp.width; c.height = vp.height;
         const ctx = c.getContext('2d');
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, c.width, c.height);
         
-        const renderContext = {
-          canvasContext: ctx,
+        await page.render({ 
+          canvasContext: ctx, 
           viewport: vp,
           background: 'rgba(255,255,255,1)'
-        };
-        await page.render(renderContext).promise;
+        }).promise;
         
         const t = new THREE.CanvasTexture(c);
         t.colorSpace = THREE.SRGBColorSpace;
@@ -191,19 +207,17 @@ export default function HolographicResume({ file, currentStep }) {
     load();
   }, [file]);
 
-  // Show document only if step > 1 (meaning file is uploaded and they are on Role/JD/Challenges)
   const showDocument = currentStep > 1 && file != null;
 
   return (
-    <Canvas camera={{ position: [0, 0, 6], fov: 45 }} gl={{ toneMapping: THREE.NoToneMapping, alpha: true }}>
+    <Canvas camera={{ position: [0, 0, 7.5], fov: 45 }} gl={{ toneMapping: THREE.NoToneMapping, alpha: true }}>
       <ambientLight intensity={0.5} />
       
       <Platform />
-      <LightRays />
       <DocumentMesh texture={texture} visible={showDocument} />
       
       <EffectComposer disableNormalPass>
-        <Bloom luminanceThreshold={1.0} luminanceSmoothing={0.3} intensity={1.5} mipmapBlur />
+        <Bloom luminanceThreshold={1.0} luminanceSmoothing={0.3} intensity={2.0} mipmapBlur />
       </EffectComposer>
     </Canvas>
   );
