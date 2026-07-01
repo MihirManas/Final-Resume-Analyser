@@ -35,14 +35,13 @@ const StreamShader = {
     
     varying vec3 vColor;
     varying float vAlpha;
-    varying float vLight;
     
     void main() {
-      // Simple neon colors
-      vec3 colBlue = vec3(0.0, 0.6, 1.0);
-      vec3 colPurple = vec3(0.6, 0.0, 1.0);
-      vec3 colGreen = vec3(0.0, 1.0, 0.4);
-      vec3 colOrange = vec3(1.0, 0.4, 0.0);
+      // Deep neon colors
+      vec3 colBlue = vec3(0.0, 0.4, 1.0);
+      vec3 colPurple = vec3(0.5, 0.0, 1.0);
+      vec3 colGreen = vec3(0.0, 0.8, 0.3);
+      vec3 colOrange = vec3(1.0, 0.3, 0.0);
       
       vec3 color = colBlue;
       float splitPhase = smoothstep(2.0, 3.0, uStage);
@@ -50,8 +49,7 @@ const StreamShader = {
       if (aCurveIndex > 1.5 && aCurveIndex < 2.5) color = mix(colBlue, colGreen, splitPhase);
       if (aCurveIndex > 2.5) color = mix(colBlue, colOrange, splitPhase);
       
-      // Core Brightness (No massive glow multiplier)
-      if (aSize > 0.1) color = mix(color, vec3(1.0, 1.0, 1.0), 0.5);
+      // Make them purely their neon color, no white center blowout
       vColor = color;
       
       float speed = mix(0.1, 0.25, smoothstep(2.0, 5.0, uStage));
@@ -63,18 +61,21 @@ const StreamShader = {
       
       vec3 pos = vec3(mix(startX, endX, progress), 0.0, 0.0);
       
-      float waveFreq = 1.2;
-      float waveAmp = 1.5;
+      // Main gentle wave
+      float waveFreq = 1.0;
+      float waveAmp = 1.0;
       pos.y = sin(progress * waveFreq * 3.14159 + uTime) * waveAmp;
       pos.z = cos(progress * waveFreq * 3.14159 + uTime * 0.5) * waveAmp * 0.5;
       
-      // Stream Spread
+      // Wide stream spread so they are distinct floating cubes, not a solid snake!
+      vec3 spreadDir = aRandom;
+      float spreadAmount = mix(1.0, 2.5, smoothstep(1.0, 3.0, uStage));
+      
       if (uStage >= 2.0) {
-        float spreadAmount = mix(0.0, 1.8, smoothstep(2.0, 3.0, uStage));
-        if (aCurveIndex == 0.0) pos.y += spreadAmount * 0.9;
-        if (aCurveIndex == 1.0) pos.y += spreadAmount * 0.3;
-        if (aCurveIndex == 2.0) pos.y -= spreadAmount * 0.3;
-        if (aCurveIndex == 3.0) pos.y -= spreadAmount * 0.9;
+        if (aCurveIndex == 0.0) pos.y += spreadAmount * 0.8;
+        if (aCurveIndex == 1.0) pos.y += spreadAmount * 0.2;
+        if (aCurveIndex == 2.0) pos.y -= spreadAmount * 0.2;
+        if (aCurveIndex == 3.0) pos.y -= spreadAmount * 0.8;
         
         // Converge to Cube Core
         float convergePhase = smoothstep(3.5, 4.5, uStage);
@@ -85,21 +86,17 @@ const StreamShader = {
         }
       }
       
-      pos += aRandom * mix(0.1, 0.6, smoothstep(1.0, 3.0, uStage));
+      // Add significant random scatter so they don't overlap
+      pos += spreadDir * spreadAmount * 0.5;
       
       vAlpha = smoothstep(0.0, 0.1, progress) * smoothstep(1.0, 0.8, progress);
-      vAlpha *= (1.0 - smoothstep(6.0, 7.0, uStage)); // Fade out when resume builds
+      vAlpha *= (1.0 - smoothstep(6.0, 7.0, uStage));
       
-      // Gentle tumble instead of chaotic spin
+      // Gentle tumble
       float angle = uTime * 0.5 + aOffset * 5.0;
       float s = sin(angle); float c = cos(angle);
       mat3 rotY = mat3(c, 0, s, 0, 1, 0, -s, 0, c);
       mat3 rotX = mat3(1, 0, 0, 0, c, -s, 0, s, c);
-      
-      // Calculate normal for basic lighting so they look like 3D cubes!
-      vec3 rotatedNormal = rotX * rotY * normal;
-      vec3 lightDir = normalize(vec3(0.5, 1.0, 0.8));
-      vLight = max(0.4, dot(rotatedNormal, lightDir)); // 0.4 ambient + directional
       
       vec3 finalPos = pos + rotX * rotY * position * aSize;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(finalPos, 1.0);
@@ -108,11 +105,10 @@ const StreamShader = {
   fragmentShader: `
     varying vec3 vColor;
     varying float vAlpha;
-    varying float vLight;
     void main() {
       if (vAlpha < 0.01) discard;
-      // Multiply color by light to get shaded 3D cubes
-      gl_FragColor = vec4(vColor * vLight, vAlpha * 0.85);
+      // Pure neon color
+      gl_FragColor = vec4(vColor, vAlpha * 0.9);
     }
   `
 };
@@ -120,7 +116,8 @@ const StreamShader = {
 const ParticleStreams = ({ currentStage }) => {
   const meshRef = useRef();
   const materialRef = useRef();
-  const count = 3000;
+  // DRASTICALLY reduced density so they are distinct cubes, not a solid wall
+  const count = 300; 
   
   const { offsets, curveIndices, sizes, randoms } = useMemo(() => {
     const offsets = new Float32Array(count);
@@ -131,11 +128,11 @@ const ParticleStreams = ({ currentStage }) => {
       offsets[i] = Math.random();
       curveIndices[i] = i % 4;
       const rand = Math.random();
-      // Most are small, some are huge hero cubes
-      sizes[i] = rand > 0.98 ? 0.3 : (rand > 0.9 ? 0.15 : 0.03 + Math.random() * 0.05);
-      randoms[i*3] = (Math.random() - 0.5) * 2;
-      randoms[i*3+1] = (Math.random() - 0.5) * 2;
-      randoms[i*3+2] = (Math.random() - 0.5) * 2;
+      // Most are small, some are hero cubes
+      sizes[i] = rand > 0.95 ? 0.2 : (rand > 0.8 ? 0.1 : 0.02 + Math.random() * 0.04);
+      randoms[i*3] = (Math.random() - 0.5) * 2.0;
+      randoms[i*3+1] = (Math.random() - 0.5) * 2.0;
+      randoms[i*3+2] = (Math.random() - 0.5) * 2.0;
     }
     return { offsets, curveIndices, sizes, randoms };
   }, []);
@@ -166,7 +163,8 @@ const ParticleStreams = ({ currentStage }) => {
           fragmentShader: StreamShader.fragmentShader,
           transparent: true,
           depthWrite: false,
-          blending: THREE.AdditiveBlending
+          blending: THREE.AdditiveBlending,
+          wireframe: true // <--- THIS MAKES THEM LOOK EXACTLY LIKE NEON HOLOGRAPHIC CUBES
         }]} 
       />
     </instancedMesh>
