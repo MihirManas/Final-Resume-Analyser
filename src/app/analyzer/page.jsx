@@ -7,12 +7,14 @@ import gsap from 'gsap';
 import { styles } from '@/utils/styles';
 import TicTacToeGame from '@/components/TicTacToeGame';
 import Dashboard from '@/components/Dashboard';
+import HolographicResume from '@/components/HolographicResume';
 
 export default function App() {
   const [bootComplete, setBootComplete] = useState(true);
 
   // Multistep State
   const [currentStep, setCurrentStep] = useState(1);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Form State
   const [resumeFile, setResumeFile] = useState(null);
@@ -189,6 +191,20 @@ export default function App() {
       );
   };
 
+  const handleNextStep = (nextStep) => {
+    if (nextStep > currentStep) {
+      // Trigger burning coals transition before moving forward
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(nextStep);
+        // Turn off transition after step has changed so it reconstructs
+        setTimeout(() => setIsTransitioning(false), 300);
+      }, 800); // Wait for shader to burn out
+    } else {
+      setCurrentStep(nextStep);
+    }
+  };
+
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     setIsDraggingOver(true);
@@ -233,7 +249,7 @@ export default function App() {
 
       {/* Top Navigation Steps Bar (Only visible on Steps 2-4) */}
       {bootComplete && !isLoading && !analysisResult && currentStep > 1 && (
-        <div className="w-full max-w-4xl mx-auto pt-8 px-6 relative z-20 animate-in fade-in slide-in-from-top-4 duration-700">
+        <div className="w-full max-w-4xl mx-auto pt-28 px-6 relative z-20 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex items-center justify-between relative">
             <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-white/5 -translate-y-1/2 z-0" />
             
@@ -301,7 +317,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, filter: "blur(10px)" }}
               transition={{ duration: 0.5 }}
-              className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8 items-center"
+              className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8 items-center mt-12"
             >
               {/* Left Column */}
               <div className="flex flex-col items-start justify-center">
@@ -446,49 +462,13 @@ export default function App() {
               >
                 {/* Holographic Document (Only visible if uploaded or reconstructing) */}
                 {(resumeFile || isHologramReconstructing) && (
-                  <motion.div 
-                    className="hologram-resume-preview relative mb-12 z-20"
-                    animate={{ 
-                      rotateY: [0, 360], 
-                      y: [0, -15, 0] 
-                    }}
-                    transition={{ 
-                      rotateY: { repeat: Infinity, duration: 20, ease: "linear" },
-                      y: { repeat: Infinity, duration: 4, ease: "easeInOut" }
-                    }}
-                  >
-                    <div className="w-[280px] h-[380px] bg-[#020408]/40 backdrop-blur-md border border-[#009DFF]/40 rounded-xl p-6 shadow-[0_0_30px_rgba(0,157,255,0.2)] overflow-hidden relative">
-                      {/* Scan line effect inside document */}
-                      <div className="absolute top-0 left-0 w-full h-1 bg-[#009DFF]/60 shadow-[0_0_15px_#009DFF] animate-scan" />
-                      
-                      {/* Mock Document Content with glow */}
-                      <div className="space-y-4 opacity-70">
-                        <div className="w-1/2 h-4 bg-[#009DFF]/40 rounded blur-[1px]" />
-                        <div className="w-full h-2 bg-white/20 rounded blur-[0.5px]" />
-                        <div className="w-5/6 h-2 bg-white/20 rounded blur-[0.5px]" />
-                        <div className="w-full h-2 bg-white/20 rounded blur-[0.5px]" />
-                        <div className="py-2" />
-                        <div className="w-1/3 h-3 bg-[#009DFF]/30 rounded blur-[1px]" />
-                        <div className="w-full h-2 bg-white/10 rounded" />
-                        <div className="w-4/5 h-2 bg-white/10 rounded" />
-                        <div className="w-full h-2 bg-white/10 rounded" />
-                      </div>
-
-                      <div className="absolute inset-0 bg-gradient-to-b from-[#009DFF]/10 to-transparent pointer-events-none" />
-                      
-                      {resumeFile && (
-                        <div className="absolute bottom-4 left-0 right-0 text-center">
-                          <span className="bg-[#020408]/80 text-[#009DFF] px-3 py-1 rounded-full text-xs font-semibold border border-[#009DFF]/30 backdrop-blur-xl">
-                            {resumeFile.name}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
+                  <div className="relative mb-12 z-20 w-[400px] h-[550px] pointer-events-auto flex items-center justify-center">
+                     <HolographicResume file={resumeFile} isTransitioning={isTransitioning} />
+                  </div>
                 )}
 
                 {/* Glowing Platform (Always visible during transition) */}
-                <div className="relative flex items-center justify-center mt-32" ref={platformRef}>
+                <div className="relative flex items-center justify-center mt-12" ref={platformRef}>
                   {/* Energy Beam (Hidden by default, triggered by GSAP) */}
                   <div ref={beamRef} className="absolute bottom-0 w-32 h-[400px] bg-gradient-to-t from-[#009DFF]/80 via-[#009DFF]/20 to-transparent blur-md opacity-0 origin-bottom z-10" />
                   
@@ -546,12 +526,12 @@ export default function App() {
                       </div>
 
                       <div className="flex justify-between items-center mt-10">
-                        <button onClick={() => setCurrentStep(1)} className="text-white/40 hover:text-white text-sm flex items-center gap-1 transition-colors">
+                        <button onClick={() => handleNextStep(1)} className="text-white/40 hover:text-white text-sm flex items-center gap-1 transition-colors">
                           <ChevronLeft className="w-4 h-4" /> Back
                         </button>
                         <button 
-                          onClick={() => setCurrentStep(3)}
-                          disabled={!targetRole.trim()}
+                          onClick={() => handleNextStep(3)}
+                          disabled={!targetRole.trim() || isTransitioning}
                           className="bg-[#009DFF] hover:bg-[#009DFF]/90 text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(0,157,255,0.3)]"
                         >
                           Continue <ChevronRight className="w-4 h-4" />
@@ -623,12 +603,13 @@ export default function App() {
                       </div>
 
                       <div className="flex justify-between items-center">
-                        <button onClick={() => setCurrentStep(2)} className="text-white/40 hover:text-white text-sm flex items-center gap-1 transition-colors">
+                        <button onClick={() => handleNextStep(2)} className="text-white/40 hover:text-white text-sm flex items-center gap-1 transition-colors">
                           <ChevronLeft className="w-4 h-4" /> Back
                         </button>
                         <button 
-                          onClick={() => setCurrentStep(4)}
-                          className="bg-[#009DFF] hover:bg-[#009DFF]/90 text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(0,157,255,0.3)]"
+                          onClick={() => handleNextStep(4)}
+                          disabled={isTransitioning}
+                          className="bg-[#009DFF] hover:bg-[#009DFF]/90 text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(0,157,255,0.3)] disabled:opacity-50"
                         >
                           Continue <ChevronRight className="w-4 h-4" />
                         </button>
@@ -707,7 +688,7 @@ export default function App() {
                       </AnimatePresence>
 
                       <div className="flex justify-between items-center mt-6">
-                        <button onClick={() => setCurrentStep(3)} className="text-white/40 hover:text-white text-sm flex items-center gap-1 transition-colors">
+                        <button onClick={() => handleNextStep(3)} className="text-white/40 hover:text-white text-sm flex items-center gap-1 transition-colors">
                           <ChevronLeft className="w-4 h-4" /> Back
                         </button>
                         
