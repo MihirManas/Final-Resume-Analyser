@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 
 import { styles } from '@/utils/styles';
-import TicTacToeGame from '@/components/TicTacToeGame';
 import Dashboard from '@/components/Dashboard';
 import dynamic from 'next/dynamic';
 
@@ -14,6 +13,15 @@ const HolographicResume = dynamic(() => import('@/components/HolographicResume')
   loading: () => (
     <div className="w-[280px] h-[380px] bg-[#020408]/40 border border-[#009DFF]/40 rounded-xl flex items-center justify-center">
       <Loader2 className="w-8 h-8 text-[#009DFF] animate-spin" />
+    </div>
+  )
+});
+
+const AnalysisAnimation = dynamic(() => import('@/components/AnalysisAnimation'), {
+  ssr: false,
+  loading: () => (
+    <div className="fixed inset-0 z-40 bg-[#020408] flex items-center justify-center">
+      <Loader2 className="w-12 h-12 text-[#009DFF] animate-spin" />
     </div>
   )
 });
@@ -283,38 +291,7 @@ export default function App() {
       )}
 
       {bootComplete && isLoading && (
-        <div className="relative z-10 w-full max-w-lg px-6 mx-auto py-16 flex flex-col items-center justify-center animate-in fade-in duration-700 my-auto flex-1">
-          {/* Pulsing glow ring */}
-          <div className="relative mb-8">
-            <div className="w-28 h-28 rounded-full border-2 border-[#009DFF]/30 flex items-center justify-center relative backdrop-blur-sm">
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#009DFF] animate-spin" style={{ animationDuration: '1.5s' }} />
-              <div className="absolute inset-2 rounded-full border border-transparent border-b-[#009DFF]/40 animate-spin" style={{ animationDuration: '3s', animationDirection: 'reverse' }} />
-              <span className="text-4xl">{loadingTipIndex % 2 === 0 ? '🧠' : '☕'}</span>
-            </div>
-            <div className="absolute inset-0 rounded-full bg-[#009DFF]/10 blur-xl animate-pulse" />
-          </div>
-
-          <h2 className="text-xl font-bold text-center mb-2">{loadingStage || 'Analyzing your resume...'}</h2>
-          <p className="text-sm text-white/40 mb-6">This usually takes 15–30 seconds</p>
-
-          <div className="w-full max-w-sm h-1.5 bg-white/10 backdrop-blur-md rounded-full overflow-hidden mb-6 border border-white/20">
-            <div className="h-full bg-[#009DFF] rounded-full animate-pulse shadow-[0_0_10px_#009DFF]" style={{ width: elapsedTime < 10 ? `${elapsedTime * 8}%` : elapsedTime < 90 ? `${80 + (elapsedTime - 10) * 0.2}%` : '95%', transition: 'width 1s ease' }} />
-          </div>
-
-          <TicTacToeGame />
-
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 text-center max-w-sm" key={loadingTipIndex}>
-            <p className="text-sm text-white/60 animate-in fade-in duration-500">{loadingTips[loadingTipIndex]}</p>
-          </div>
-
-          <p className="mt-4 text-xs text-white/30 font-mono">
-            {Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:{(elapsedTime % 60).toString().padStart(2, '0')} elapsed
-          </p>
-          
-          <button onClick={handleReset} className="mt-8 px-4 py-2 flex items-center gap-2 text-sm text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all">
-            <ArrowLeft size={16} /> Cancel Analysis
-          </button>
-        </div>
+        <AnalysisAnimation file={resumeFile} onCancel={handleReset} />
       )}
 
       {bootComplete && !isLoading && !analysisResult && (
