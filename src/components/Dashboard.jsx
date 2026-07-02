@@ -81,87 +81,131 @@ const ScoreCard = ({ title, icon: Icon, score, isEmployability }) => (
 
 // --- Sub Views ---
 
-const OverviewView = ({ result }) => (
-  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-    <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Strengths */}
-      <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 relative overflow-hidden group hover:border-[#22C55E]/30 transition-colors">
-        <div className="absolute top-0 left-0 w-1 h-full bg-[#22C55E]/50 group-hover:bg-[#22C55E] transition-colors"></div>
-        <h3 className="flex items-center gap-2 text-lg font-bold text-[#22C55E] mb-6">
-          <CheckCircle2 size={20} /> Key Strengths
-        </h3>
-        <ul className="space-y-4">
-          {(result.strengths && result.strengths.length > 0 ? result.strengths : [
-            "Strong technical skills match",
-            "Good project diversity",
-            "Relevant work experience",
-            "Well-structured resume"
-          ]).map((item, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#22C55E] mt-2 shadow-[0_0_5px_#22C55E] shrink-0"></div>
-              <span className="text-gray-300 text-sm leading-relaxed">{item}</span>
-            </li>
-          ))}
-        </ul>
+const OverviewView = ({ result }) => {
+  const [expandedPhase, setExpandedPhase] = useState(null);
+
+  const togglePhase = (i) => {
+    if (expandedPhase === i) setExpandedPhase(null);
+    else setExpandedPhase(i);
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Strengths */}
+        <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 relative overflow-hidden group hover:border-[#22C55E]/30 transition-colors">
+          <div className="absolute top-0 left-0 w-1 h-full bg-[#22C55E]/50 group-hover:bg-[#22C55E] transition-colors"></div>
+          <h3 className="flex items-center gap-2 text-lg font-bold text-[#22C55E] mb-6">
+            <CheckCircle2 size={20} /> Key Strengths
+          </h3>
+          <ul className="space-y-4">
+            {(result.strengths && result.strengths.length > 0 ? result.strengths : [
+              "Strong technical skills match",
+              "Good project diversity",
+              "Relevant work experience",
+              "Well-structured resume"
+            ]).map((item, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#22C55E] mt-2 shadow-[0_0_5px_#22C55E] shrink-0"></div>
+                <span className="text-gray-300 text-sm leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Weaknesses */}
+        <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 relative overflow-hidden group hover:border-[#EF4444]/30 transition-colors">
+          <div className="absolute top-0 left-0 w-1 h-full bg-[#EF4444]/50 group-hover:bg-[#EF4444] transition-colors"></div>
+          <h3 className="flex items-center gap-2 text-lg font-bold text-[#EF4444] mb-6">
+            <XCircle size={20} /> Areas to Build On
+          </h3>
+          <ul className="space-y-4">
+            {([...(result.weaknesses || []), ...(result.missing_skills || [])].length > 0 ? [...(result.weaknesses || []), ...(result.missing_skills || [])] : [
+              "Missing few important keywords",
+              "Limited quantifiable achievements",
+              "Skills section needs improvement",
+              "Education section not optimized"
+            ]).slice(0,4).map((item, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] mt-2 shadow-[0_0_5px_#EF4444] shrink-0"></div>
+                <span className="text-gray-300 text-sm leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
-      {/* Weaknesses */}
-      <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 relative overflow-hidden group hover:border-[#EF4444]/30 transition-colors">
-        <div className="absolute top-0 left-0 w-1 h-full bg-[#EF4444]/50 group-hover:bg-[#EF4444] transition-colors"></div>
-        <h3 className="flex items-center gap-2 text-lg font-bold text-[#EF4444] mb-6">
-          <XCircle size={20} /> Areas to Build On
+      {/* Improvement Plan (Col 3) */}
+      <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 lg:col-span-1">
+        <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-6">
+          <AlertTriangle size={20} className="text-[#F97316]" /> Strategic Improvement Plan
         </h3>
-        <ul className="space-y-4">
-          {([...(result.weaknesses || []), ...(result.missing_skills || [])].length > 0 ? [...(result.weaknesses || []), ...(result.missing_skills || [])] : [
-            "Missing few important keywords",
-            "Limited quantifiable achievements",
-            "Skills section needs improvement",
-            "Education section not optimized"
-          ]).slice(0,4).map((item, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#EF4444] mt-2 shadow-[0_0_5px_#EF4444] shrink-0"></div>
-              <span className="text-gray-300 text-sm leading-relaxed">{item}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-4">
+          {(result.improvement_plan && result.improvement_plan.length > 0 ? result.improvement_plan : [
+            "Optimize your resume for ATS",
+            "Highlight measurable achievements",
+            "Strengthen your skills section"
+          ]).map((item, i) => {
+              let title = "";
+              let phase = `Phase ${i + 1}`;
+              let desc = "Follow this recommendation closely.";
+              let roadmap = [];
+              let isObject = typeof item === 'object' && item !== null;
+
+              if (isObject) {
+                phase = item.phase || phase;
+                title = item.title || "";
+                desc = item.plan || desc;
+                roadmap = item.roadmap || [];
+              } else {
+                title = item;
+                if (item.includes(':')) {
+                  const parts = item.split(':');
+                  title = parts[0].trim();
+                  desc = parts.slice(1).join(':').trim();
+                }
+              }
+
+              const isExpanded = expandedPhase === i;
+
+              return (
+            <div key={i} className="flex flex-col gap-3 group border border-[#1A2642] p-4 rounded-xl bg-[#070D18]">
+              <div 
+                className="flex items-center gap-4 cursor-pointer"
+                onClick={() => togglePhase(i)}
+              >
+                <div className="w-8 h-8 rounded-full bg-[#F97316] text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-[0_0_15px_rgba(249,115,22,0.4)]">
+                  {i + 1}
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-white text-sm font-bold group-hover:text-[#F97316] transition-colors">{phase}</h4>
+                  {title && <p className="text-gray-400 text-xs font-semibold">{title}</p>}
+                </div>
+                <ChevronRight size={18} className={`text-gray-500 transition-transform duration-300 ${isExpanded ? 'rotate-90 text-[#F97316]' : ''}`} />
+              </div>
+              
+              {isExpanded && (
+                <div className="pl-12 pr-2 pb-2 mt-2 border-t border-[#1A2642] pt-4">
+                  <p className="text-sm text-gray-300 leading-relaxed mb-4">{desc}</p>
+                  {roadmap.length > 0 && (
+                    <ul className="space-y-2">
+                      {roadmap.map((step, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] mt-1.5 shadow-[0_0_5px_#3B82F6] shrink-0"></div>
+                          <span className="text-gray-400 text-xs leading-relaxed">{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )})}
+        </div>
       </div>
     </div>
-
-    {/* Improvement Plan (Col 3) */}
-    <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-6 lg:col-span-1">
-      <h3 className="flex items-center gap-2 text-lg font-bold text-white mb-6">
-        <AlertTriangle size={20} className="text-[#F97316]" /> Strategic Improvement Plan
-      </h3>
-      <div className="space-y-6">
-        {(result.improvement_plan && result.improvement_plan.length > 0 ? result.improvement_plan : [
-          "Optimize your resume for ATS",
-          "Highlight measurable achievements",
-          "Strengthen your skills section"
-        ]).map((item, i) => {
-            let title = item;
-            let desc = "Follow this recommendation closely.";
-            if (item.includes(':')) {
-              const parts = item.split(':');
-              title = parts[0].trim();
-              desc = parts.slice(1).join(':').trim();
-            }
-
-            return (
-          <div key={i} className="flex items-start gap-4 group cursor-pointer">
-            <div className="w-6 h-6 rounded-full bg-[#F97316] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-[0_0_10px_rgba(249,115,22,0.4)] mt-1">
-              {i + 1}
-            </div>
-            <div className="flex-1">
-              <h4 className="text-white text-sm font-bold mb-1 group-hover:text-[#3B82F6] transition-colors">{title}</h4>
-              <p className="text-gray-400 text-xs">{desc}</p>
-            </div>
-            <ChevronRight size={16} className="text-gray-600 group-hover:text-white transition-colors mt-1" />
-          </div>
-        )})}
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const ATSScoreView = ({ result }) => (
   <div className="bg-[#0B1221] border border-[#1A2642] rounded-2xl p-8 relative overflow-hidden">

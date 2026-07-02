@@ -63,6 +63,12 @@ class RecommendedJobMatch(BaseModel):
     job_title: str
     match_logic: str
 
+class ImprovementPhase(BaseModel):
+    phase: str
+    title: str
+    plan: str
+    roadmap: List[str]
+
 class FeedbackOutput(BaseModel):
     strengths: List[str]
     weaknesses: List[str]
@@ -80,7 +86,7 @@ class FeedbackOutput(BaseModel):
     career_suggestions: List[str]
     
     recommended_job_matches: List[RecommendedJobMatch]
-    improvement_plan: List[str]
+    improvement_plan: List[ImprovementPhase]
     alternative_roles_suggested: List[str]
     skill_acquisition_guide: List[str]
     jd_resume_comparison: List[JDComparisonItem]
@@ -111,7 +117,7 @@ class DashboardReport(BaseModel):
     missing_skills: List[str]
     
     recommendations: dict
-    improvement_plan: List[str]
+    improvement_plan: List[Any]
     alternative_roles_suggested: List[str]
     skill_acquisition_guide: List[str]
     

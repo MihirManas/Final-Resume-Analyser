@@ -82,6 +82,9 @@ def _build_feedback_prompt(extraction_json: str, user_problems: str = None) -> s
     JOB MATCHES:
     Generate a list of recommended_job_matches. These should be jobs that actually suit the resume. Provide the job_title and a match_logic string explaining exactly why this job is a fit for the candidate's current background.
     
+    IMPROVEMENT PLAN:
+    Provide an improvement_plan as an array of detailed objects. Each object must have a 'phase' (e.g., "Phase 1 (0-3 Months)"), a 'title' for the phase, a detailed 'plan' paragraph, and a 'roadmap' which is an array of actionable steps/bullet points.
+
     Provide actionable steps for skill acquisition. Address their specific challenges if provided.
     Crucially, generate a 'jd_resume_comparison' array matching exactly 5 to 8 core criteria from the JD vs the Resume. If there is no JD context available in the extraction, return an empty array for jd_resume_comparison.
     
