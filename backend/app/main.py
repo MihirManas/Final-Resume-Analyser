@@ -232,7 +232,7 @@ async def upload_resume(
                 "career_suggestions": gemini_result.feedback.career_suggestions,
                 "top_rejection_reasons": gemini_result.feedback.top_rejection_reasons
             },
-            improvement_plan_json=gemini_result.feedback.improvement_plan,
+            improvement_plan_json=[phase.model_dump() if hasattr(phase, 'model_dump') else phase for phase in gemini_result.feedback.improvement_plan],
             alternative_roles_json=gemini_result.feedback.alternative_roles_suggested,
             skill_guide_json=gemini_result.feedback.skill_acquisition_guide,
             jd_comparison_json=[item.model_dump() for item in gemini_result.feedback.jd_resume_comparison],
