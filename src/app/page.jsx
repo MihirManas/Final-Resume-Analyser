@@ -147,7 +147,7 @@ export default function LandingPage() {
                 </div>
               </Link>
               
-              <Link href="/demo" className="w-full sm:w-auto">
+              <Link href="/how-it-works" className="w-full sm:w-auto">
                 <div className="group flex items-center justify-center gap-3 px-6 py-4 text-white hover:text-[#009DFF] transition-colors cursor-pointer">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-500 group-hover:border-[#009DFF] group-hover:bg-[#009DFF]/10 transition-colors">
                     <Play className="w-4 h-4 ml-1 fill-current opacity-90 group-hover:opacity-100" />
