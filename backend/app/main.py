@@ -178,16 +178,25 @@ async def upload_resume(
         cached_item = cache_result.scalars().first()
         
         is_cached = False
+        CURRENT_SCHEMA_VERSION = 2
+        
         if cached_item:
-            logger.info("CACHE HIT! Returning instantly from DB.")
             cached_data = cached_item.result_json
-            if "original_analysis_id" in cached_data:
-                # Completely avoid creating duplicate data if we already have it
-                return {"analysis_id": cached_data["original_analysis_id"], "message": "Analysis completed successfully"}
+            cache_version = cached_data.get("schema_version", 1)
             
-            gemini_result = FullGeminiResult(**cached_data)
-            is_cached = True
-        else:
+            if cache_version >= CURRENT_SCHEMA_VERSION:
+                logger.info("CACHE HIT! Returning instantly from DB.")
+                if "original_analysis_id" in cached_data:
+                    # Completely avoid creating duplicate data if we already have it
+                    return {"analysis_id": cached_data["original_analysis_id"], "message": "Analysis completed successfully"}
+                
+                gemini_result = FullGeminiResult(**cached_data)
+                is_cached = True
+            else:
+                logger.info(f"CACHE HIT BUT OUTDATED (v{cache_version}). Treating as MISS.")
+                # We do NOT set is_cached = True, forcing it to fall through to AI Pipeline
+        
+        if not is_cached:
             logger.info("CACHE MISS. Running AI Pipeline...")
             gemini_result = await analyze_resume(resume_md, target_role, jd_md, user_problems)
 
@@ -201,7 +210,9 @@ async def upload_resume(
             user_id=user.id,
             target_role=target_role,
             resume_filename=resume_file.filename,
+            resume_markdown=resume_md,
             jd_filename=jd_file.filename if (jd_file and jd_file.filename) else None,
+            jd_markdown=jd_md,
             user_problems=user_problems,
             employability_score=gemini_result.extraction.employability_score,
             ats_score=gemini_result.extraction.ats_score,
@@ -245,8 +256,18 @@ async def upload_resume(
         if not is_cached:
             cache_payload = gemini_result.model_dump()
             cache_payload["original_analysis_id"] = analysis.id
-            new_cache = AnalysisCache(hash_key=cache_key, result_json=cache_payload)
-            db.add(new_cache)
+            cache_payload["schema_version"] = CURRENT_SCHEMA_VERSION
+            
+            if cached_item:
+                # Update the existing outdated cache item
+                cached_item.result_json = cache_payload
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(cached_item, "result_json")
+            else:
+                # Create a completely new cache item
+                new_cache = AnalysisCache(hash_key=cache_key, result_json=cache_payload)
+                db.add(new_cache)
+                
             await db.commit()
 
             background_tasks.add_task(

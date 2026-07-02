@@ -60,7 +60,9 @@ class ResumeAnalysis(Base):
     api_client_id = Column(Integer, ForeignKey("api_clients.id"), nullable=True)
     target_role = Column(String, index=True)
     resume_filename = Column(String)
+    resume_markdown = Column(String, nullable=True)
     jd_filename = Column(String, nullable=True)
+    jd_markdown = Column(String, nullable=True)
     user_problems = Column(String, nullable=True)
     
     # Overview Scores
