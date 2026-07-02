@@ -53,6 +53,7 @@ def _build_extraction_prompt(resume_md: str, target_role: str, jd_md: str = None
     3. Level 3 Features: If JD exists, output a dictionary mapping specific JD requirements to 1 (found) or 0 (missing). If no JD, return empty dict.
     4. Scores (0-100): 
        - ATS Score: Evaluate based ONLY on resume quality, structure, grammar, and parsability. (If the resume is well-written, ATS should be high regardless of role match).
+       - ATS Logic: Provide a precise string explaining the exact logic for the ATS score, specifically highlighting the problems or good parts of the resume for ATS systems.
        - Skill, Project, Portfolio Scores: Evaluate based heavily on how well they MATCH the Target Role ({target_role}) or JD.
        - Employability & Interview Scores: Represent OVERALL alignment. Balance resume quality with the target role fit. If the candidate's background is irrelevant to the target role, penalize these to reflect the poor fit.
        - Role Fit Score: Strictly how well the candidate matches the target role/JD.
@@ -72,6 +73,15 @@ def _build_feedback_prompt(extraction_json: str, user_problems: str = None) -> s
     {problems_context}
     
     TASK: Generate highly personalized feedback, strengths, weaknesses, and a concrete improvement plan.
+    IMPORTANT: For strengths and weaknesses, do NOT just state the score. You must EXPLAIN the score constructively. Instead of "Portfolio score is 75", say "The projects are weak leading to a weak portfolio, which is why your portfolio score is only 75. Try to do some strong industry-oriented projects like X and Y."
+    
+    SKILLS CATEGORIZATION:
+    Categorize skills into absolute_necessary_skills, good_to_have_skills, and need_to_learn_skills. 
+    Provide a skills_logic string explaining why you categorized them this way based on the role.
+
+    JOB MATCHES:
+    Generate a list of recommended_job_matches. These should be jobs that actually suit the resume. Provide the job_title and a match_logic string explaining exactly why this job is a fit for the candidate's current background.
+    
     Provide actionable steps for skill acquisition. Address their specific challenges if provided.
     Crucially, generate a 'jd_resume_comparison' array matching exactly 5 to 8 core criteria from the JD vs the Resume. If there is no JD context available in the extraction, return an empty array for jd_resume_comparison.
     

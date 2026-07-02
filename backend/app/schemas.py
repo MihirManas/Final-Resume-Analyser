@@ -50,6 +50,7 @@ class ExtractionScoreOutput(BaseModel):
     # Overview Scores
     employability_score: int
     ats_score: int
+    ats_logic: str
     skill_score: int
     project_score: int
     portfolio_score: int
@@ -58,15 +59,27 @@ class ExtractionScoreOutput(BaseModel):
     shortlist_probability: str  # e.g., "75%", "No Info"
     jd_date_analysis: str # Mentions the current date vs the job post date. Return "Not Applicable" if no JD or no date.
 
+class RecommendedJobMatch(BaseModel):
+    job_title: str
+    match_logic: str
+
 class FeedbackOutput(BaseModel):
     strengths: List[str]
     weaknesses: List[str]
     missing_skills: List[str]
     top_rejection_reasons: List[str]
     recommended_skills: List[str]
+    
+    absolute_necessary_skills: List[str]
+    good_to_have_skills: List[str]
+    need_to_learn_skills: List[str]
+    skills_logic: str
+    
     recommended_projects: List[str]
     recommended_certifications: List[str]
     career_suggestions: List[str]
+    
+    recommended_job_matches: List[RecommendedJobMatch]
     improvement_plan: List[str]
     alternative_roles_suggested: List[str]
     skill_acquisition_guide: List[str]
@@ -101,6 +114,13 @@ class DashboardReport(BaseModel):
     improvement_plan: List[str]
     alternative_roles_suggested: List[str]
     skill_acquisition_guide: List[str]
+    
+    ats_logic: Optional[str] = None
+    absolute_necessary_skills: Optional[List[str]] = None
+    good_to_have_skills: Optional[List[str]] = None
+    need_to_learn_skills: Optional[List[str]] = None
+    skills_logic: Optional[str] = None
+    recommended_job_matches: Optional[List[dict]] = None
     
     role_fit: int
     estimated_improved_score: int
