@@ -72,7 +72,7 @@ export default function LandingPage() {
         >
           {/* Frame 01 (Middle) */}
           <motion.img 
-            src="/video/frame_01.png" 
+            src="/video/frame_01.webp" 
             alt="Clear Burning Resume" 
             className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
@@ -84,7 +84,7 @@ export default function LandingPage() {
 
           {/* Frame 02 (Left / Default) */}
           <motion.img 
-            src="/video/frame_02.png" 
+            src="/video/frame_02.webp" 
             alt="Burning Resume Magic with Hands" 
             className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
@@ -96,7 +96,7 @@ export default function LandingPage() {
 
           {/* Frame 03 (Right) */}
           <motion.img 
-            src="/video/frame_03.png" 
+            src="/video/frame_03.webp" 
             alt="Burning Resume Further Interaction" 
             className="absolute inset-0 w-full h-full object-cover md:object-contain object-right opacity-95"
             style={{
