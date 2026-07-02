@@ -48,7 +48,7 @@ def _build_extraction_prompt(resume_md: str, target_role: str, jd_md: str = None
     {resume_md}
     
     TASK: Extract structured candidate details, feature vectors, and calculate scores based STRICTLY on the text.
-    WARNING: Be extremely harsh, critical, and analytical when scoring. The average resume should score around a 50-60. Deduct points heavily for missing critical skills, 0 internships, or weak projects. DO NOT inflate scores due to positivity bias.
+    WARNING: Be analytical and strict when scoring. Do NOT inflate scores due to positivity bias. Deduct points for missing critical skills or weak projects. HOWEVER, if the resume is genuinely excellent for the role, score it appropriately high. Do not criticize just for the sake of being harsh if the candidate actually meets the bar.
     1. Level 1 Features: Calculate years of experience precisely, count projects, internships, etc. Length is rough word count.
     2. Level 2 Features: Extract array of technical skills/tools explicitly mentioned.
     3. Level 3 Features: If JD exists, output a dictionary mapping specific JD requirements to 1 (found) or 0 (missing). If no JD, return empty dict.
@@ -65,26 +65,31 @@ def _build_extraction_prompt(resume_md: str, target_role: str, jd_md: str = None
     OUTPUT: Strictly a JSON object matching the requested schema.
     """
 
-def _build_feedback_prompt(extraction_json: str, user_problems: str = None) -> str:
+def _build_feedback_prompt(extraction_json: str, target_role: str, user_problems: str = None) -> str:
     problems_context = f"CANDIDATE CHALLENGES:\n{user_problems}" if user_problems else ""
     return f"""
     You are an elite Career Coach. Based on this candidate's extracted data and scores:
     {extraction_json}
+    
+    TARGET ROLE: {target_role}
     
     {problems_context}
     
     TASK: Generate highly personalized feedback, strengths, weaknesses, and a concrete improvement plan.
     IMPORTANT: For strengths and weaknesses, do NOT just state the score. You must EXPLAIN the score constructively. Instead of "Portfolio score is 75", say "The projects are weak leading to a weak portfolio, which is why your portfolio score is only 75. Try to do some strong industry-oriented projects like X and Y."
     
-    SKILLS CATEGORIZATION:
-    Based STRICTLY on the Target Role, list the skills that are `absolute_necessary_skills` and `good_to_have_skills` for THAT specific role. Do not just list the candidate's current skills. Then, identify the critical skills the candidate is missing for this target role and put them in `need_to_learn_skills`.
-    Provide a skills_logic string explaining why you categorized them this way based on the target role.
+    SKILLS CATEGORIZATION (CRITICAL):
+    You MUST analyze skills strictly for the TARGET ROLE ({target_role}), not just what is on their resume.
+    - absolute_necessary_skills: What skills are non-negotiable for {target_role}? (Even if the candidate lacks them, list them here).
+    - good_to_have_skills: What skills are bonus for {target_role}?
+    - need_to_learn_skills: What skills from the 'absolute_necessary' list does the candidate currently LACK on their resume?
+    Provide a skills_logic string explaining this gap analysis.
 
     JOB MATCHES:
-    Generate a list of recommended_job_matches. These should be jobs that actually suit the resume. Provide the job_title and a match_logic string explaining exactly why this job is a fit for the candidate's current background.
+    Generate a list of recommended_job_matches. These should be jobs that ACTUALLY SUIT the candidate's CURRENT resume (e.g., if they applied for UI/UX but have Data Science skills, suggest Data Science jobs). Provide the job_title and a match_logic string explaining exactly why this job is a fit for their current background.
     
     IMPROVEMENT PLAN:
-    Provide an improvement_plan as an array of detailed objects. Each object must have a 'phase' (e.g., "Phase 1 (0-3 Months)"), a 'title' for the phase, a detailed 'plan' paragraph, and a 'roadmap' which is an array of actionable steps/bullet points.
+    Provide an improvement_plan as an array of detailed objects. Each object must have a 'phase' (e.g., "Phase 1 (0-3 Months)"), a 'title' for the phase, a detailed 'plan' paragraph, and a 'roadmap' which is an array of actionable steps/bullet points to help them transition to the TARGET ROLE.
 
     Provide actionable steps for skill acquisition. Address their specific challenges if provided.
     Crucially, generate a 'jd_resume_comparison' array matching exactly 5 to 8 core criteria from the JD vs the Resume. If there is no JD context available in the extraction, return an empty array for jd_resume_comparison.
@@ -160,7 +165,7 @@ async def analyze_resume(resume_md: str, target_role: str, jd_md: str = None, us
         extraction = await _call_gemini_with_retries(client, FALLBACK_MODEL, ext_prompt, ExtractionScoreOutput, 0.0)
 
     # STEP 2: Feedback Generation (Temp = 0.2)
-    fb_prompt = _build_feedback_prompt(extraction.model_dump_json(), user_problems)
+    fb_prompt = _build_feedback_prompt(extraction.model_dump_json(), target_role, user_problems)
     try:
         feedback = await _call_gemini_with_retries(client, PRIMARY_MODEL, fb_prompt, FeedbackOutput, 0.2)
     except Exception as e:
