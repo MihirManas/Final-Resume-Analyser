@@ -360,7 +360,7 @@ export default function Dashboard({ result, onReset }) {
     <div className="flex h-full w-full bg-[#02050A] text-white overflow-hidden font-sans">
       
       {/* LEFT SIDEBAR */}
-      <div className="w-64 flex flex-col bg-[#02050A] border-r border-[#111A2C] flex-shrink-0 z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
+      <div className="w-64 flex flex-col bg-[#02050A] border-r border-[#111A2C] flex-shrink-0 z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)] no-print">
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-8">
           <div className="w-8 h-8 bg-[#3B82F6] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)]">
@@ -403,7 +403,7 @@ export default function Dashboard({ result, onReset }) {
         <div className="max-w-6xl mx-auto p-8 lg:p-10 space-y-6">
           
           {/* Top Navbar */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 no-print">
             <button 
               onClick={onReset}
               className="flex items-center gap-2 text-[#3B82F6] hover:text-white text-sm font-medium transition-colors"
@@ -411,7 +411,7 @@ export default function Dashboard({ result, onReset }) {
               <ArrowLeft size={16} /> Back <span className="text-gray-500">to Dashboard</span>
             </button>
             <div className="flex items-center gap-4">
-              <button className="flex items-center gap-2 px-5 py-2.5 bg-transparent hover:bg-white/5 border border-[#1A2642] rounded-full text-white text-sm font-medium transition-colors">
+              <button onClick={() => window.print()} className="flex items-center gap-2 px-5 py-2.5 bg-transparent hover:bg-white/5 border border-[#1A2642] rounded-full text-white text-sm font-medium transition-colors">
                 <Download size={16} className="text-[#3B82F6]" /> Download Report
               </button>
               <button 

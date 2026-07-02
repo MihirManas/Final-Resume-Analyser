@@ -7,3 +7,21 @@
     @apply antialiased;
   }
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  button, .sidebar, .no-print {
+    display: none !important;
+  }
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+  * {
+    color: black !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+}
