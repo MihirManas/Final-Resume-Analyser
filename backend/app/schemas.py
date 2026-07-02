@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Union
 from datetime import datetime
 
 class AnalysisResponse(BaseModel):
@@ -50,7 +50,7 @@ class ExtractionScoreOutput(BaseModel):
     # Overview Scores
     employability_score: int
     ats_score: int
-    ats_logic: str
+    ats_logic: str = ""
     skill_score: int
     project_score: int
     portfolio_score: int
@@ -76,19 +76,19 @@ class FeedbackOutput(BaseModel):
     top_rejection_reasons: List[str]
     recommended_skills: List[str]
     
-    absolute_necessary_skills: List[str]
-    good_to_have_skills: List[str]
-    need_to_learn_skills: List[str]
-    skills_logic: str
+    absolute_necessary_skills: List[str] = []
+    good_to_have_skills: List[str] = []
+    need_to_learn_skills: List[str] = []
+    skills_logic: str = ""
     
-    recommended_projects: List[str]
-    recommended_certifications: List[str]
-    career_suggestions: List[str]
+    recommended_projects: List[str] = []
+    recommended_certifications: List[str] = []
+    career_suggestions: List[str] = []
     
-    recommended_job_matches: List[RecommendedJobMatch]
-    improvement_plan: List[ImprovementPhase]
-    alternative_roles_suggested: List[str]
-    skill_acquisition_guide: List[str]
+    recommended_job_matches: List[RecommendedJobMatch] = []
+    improvement_plan: List[Union[ImprovementPhase, str]] = []
+    alternative_roles_suggested: List[str] = []
+    skill_acquisition_guide: List[str] = []
     jd_resume_comparison: List[JDComparisonItem]
     estimated_improved_score: int
 
