@@ -77,8 +77,8 @@ def _build_feedback_prompt(extraction_json: str, user_problems: str = None) -> s
     IMPORTANT: For strengths and weaknesses, do NOT just state the score. You must EXPLAIN the score constructively. Instead of "Portfolio score is 75", say "The projects are weak leading to a weak portfolio, which is why your portfolio score is only 75. Try to do some strong industry-oriented projects like X and Y."
     
     SKILLS CATEGORIZATION:
-    Categorize skills into absolute_necessary_skills, good_to_have_skills, and need_to_learn_skills. 
-    Provide a skills_logic string explaining why you categorized them this way based on the role.
+    Based STRICTLY on the Target Role, list the skills that are `absolute_necessary_skills` and `good_to_have_skills` for THAT specific role. Do not just list the candidate's current skills. Then, identify the critical skills the candidate is missing for this target role and put them in `need_to_learn_skills`.
+    Provide a skills_logic string explaining why you categorized them this way based on the target role.
 
     JOB MATCHES:
     Generate a list of recommended_job_matches. These should be jobs that actually suit the resume. Provide the job_title and a match_logic string explaining exactly why this job is a fit for the candidate's current background.
