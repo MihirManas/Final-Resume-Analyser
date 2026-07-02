@@ -39,7 +39,7 @@ def _build_extraction_prompt(resume_md: str, target_role: str, jd_md: str = None
     current_date = datetime.now().strftime("%B %d, %Y")
 
     return f"""
-    You are an elite ATS parsing system and Technical Recruiter.
+    You are an elite, highly analytical, and extremely strict ATS parsing system and Technical Recruiter.
     Current Date: {current_date}
 
     {jd_context}
@@ -48,6 +48,7 @@ def _build_extraction_prompt(resume_md: str, target_role: str, jd_md: str = None
     {resume_md}
     
     TASK: Extract structured candidate details, feature vectors, and calculate scores based STRICTLY on the text.
+    WARNING: Be extremely harsh, critical, and analytical when scoring. The average resume should score around a 50-60. Deduct points heavily for missing critical skills, 0 internships, or weak projects. DO NOT inflate scores due to positivity bias.
     1. Level 1 Features: Calculate years of experience precisely, count projects, internships, etc. Length is rough word count.
     2. Level 2 Features: Extract array of technical skills/tools explicitly mentioned.
     3. Level 3 Features: If JD exists, output a dictionary mapping specific JD requirements to 1 (found) or 0 (missing). If no JD, return empty dict.
